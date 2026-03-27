@@ -1,0 +1,21 @@
+# Binaries
+*.exe
+*.dll
+*.pdb
+*.so
+*.dylib
+*.amx
+
+# OMP server files
+Server/log.txt
+Server/bans.json
+
+# Tools
+Server/qawno/
+Server/components/
+Server/npcmodes/recordings/
+Server/models/
+Server/scriptfiles/
+
+# Claude
+.claude/
