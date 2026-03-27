@@ -28,6 +28,7 @@
 #include <modules/mod_db>
 #include <modules/mod_auth>
 #include <modules/mod_playerdata>
+#include <modules/mod_admin>
 #include <modules/mod_spawn>
 
 // =============================================================================
@@ -48,6 +49,7 @@ public OnGameModeInit()
     DB_Init();
     Auth_Init();
     PData_Init();
+    Admin_Init();
     Spawn_Init();
 
     // --- Server setup ---
@@ -74,6 +76,7 @@ public OnGameModeExit()
 
     // Destroy in reverse order
     Spawn_Destroy();
+    Admin_Destroy();
     PData_Destroy();
     Auth_Destroy();
     DB_Destroy();
@@ -213,5 +216,15 @@ public OnPlayerStreamOut(playerid, forplayerid)
     EventBus_SetInt(EVD_PLAYER_ID, playerid);
     EventBus_SetInt(EVD_SECONDARY_ID, forplayerid);
     EventBus_Emit(EVT_PLAYER_STREAM_OUT);
+    return 1;
+}
+
+public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
+{
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_SetFloat(0, fX);
+    EventBus_SetFloat(1, fY);
+    EventBus_SetFloat(2, fZ);
+    EventBus_Emit(EVT_PLAYER_CLICK_MAP);
     return 1;
 }

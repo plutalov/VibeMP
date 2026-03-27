@@ -17,7 +17,17 @@
 stock Debug_Init()
 {
     EventBus_RegisterModule("Debug");
+    EventBus_Subscribe(EVT_PLAYER_HELP, "Debug_OnPlayerHelp");
     print("[MOD] Debug module initialized.");
+}
+
+// --- Help handler: print debug/utility commands ---
+forward Debug_OnPlayerHelp();
+public Debug_OnPlayerHelp()
+{
+    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
+    SendClientMessage(playerid, 0xCCCCCCFF, "/help  /stats  /debug  /events  /test");
+    return 1;
 }
 
 stock Debug_Destroy()
@@ -37,13 +47,13 @@ public cmd_help(playerid, params[])
         return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in to use commands."), 1;
 
     SendClientMessage(playerid, 0xFFFFFFFF, "---- Commands ----");
-    SendClientMessage(playerid, 0xCCCCCCFF, "/help   — show this list");
-    SendClientMessage(playerid, 0xCCCCCCFF, "/stats  — show your stats");
-    SendClientMessage(playerid, 0xCCCCCCFF, "/debug  — toggle event logging");
-    SendClientMessage(playerid, 0xCCCCCCFF, "/events — dump handlers to console");
-    SendClientMessage(playerid, 0xCCCCCCFF, "/test   — run tests");
+
+    // Each module prints its own commands
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_Emit(EVT_PLAYER_HELP);
     return 1;
 }
+
 
 forward cmd_stats(playerid, params[]);
 public cmd_stats(playerid, params[])
