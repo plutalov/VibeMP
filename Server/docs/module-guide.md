@@ -113,11 +113,34 @@ MyMod_Init();
 MyMod_Destroy();
 ```
 
-### 9. Update the compile command if needed
+### 9. Add commands (if needed)
+
+Commands use ZCMD-style routing. Define a `cmd_<name>` function — the command processor finds it automatically via `CallLocalFunction`. No registration needed.
+
+```pawn
+forward cmd_mycommand(playerid, params[]);
+public cmd_mycommand(playerid, params[])
+{
+    // Check your own conditions — the processor is just plumbing
+    if (!Auth_IsLoggedIn(playerid))
+        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
+
+    // params contains everything after "/mycommand "
+    SendClientMessage(playerid, 0xFFFFFFFF, "It works!");
+    return 1;  // 1 = handled, 0 = show "unknown command"
+}
+```
+
+- Command names are case-insensitive
+- Max 30 characters
+- Each handler checks its own auth/permission requirements
+- No need to subscribe to `EVT_PLAYER_COMMAND` — don't use the event bus for commands
+
+### 10. Update the compile command if needed
 
 The compile command already includes `-i./includes`, so no change needed unless you added a new include directory.
 
-### 10. Add tests (optional but encouraged)
+### 11. Add tests (optional but encouraged)
 
 ```pawn
 stock MyMod_RunTests()
@@ -164,12 +187,26 @@ stock Example_Destroy()
     print("[MOD] Example module destroyed.");
 }
 
-// --- Handlers ---
+// --- Event Handlers ---
 forward Example_OnConnect();
 public Example_OnConnect()
 {
     new playerid = EventBus_GetInt(EVD_PLAYER_ID);
     g_ExampleData[playerid] = 0;
+    return 1;
+}
+
+// --- Commands ---
+forward cmd_example(playerid, params[]);
+public cmd_example(playerid, params[])
+{
+    #pragma unused params
+    if (!Auth_IsLoggedIn(playerid))
+        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
+
+    new msg[64];
+    format(msg, sizeof(msg), "Your data: %d", g_ExampleData[playerid]);
+    SendClientMessage(playerid, 0xFFFFFFFF, msg);
     return 1;
 }
 ```
@@ -216,6 +253,8 @@ Similarly, use `WEAPON_FIST` instead of `0` for weapon parameters in `AddPlayerC
 | Emitting the same event you're handling | Cycle detection halts dispatch | Design acyclic event flows |
 | Treating MySQL callback as event handler | Callback never fires | MySQL/bcrypt callbacks are `public` functions called by plugins, not the event bus |
 | Not checking `IsPlayerConnected` in async callback | Crash or wrong player data | Player can disconnect during query — always check |
+| Using `EVT_PLAYER_COMMAND` for commands | Bypasses command processor | Define `cmd_<name>` functions instead — processor routes automatically |
+| Forgetting auth check in `cmd_*` handler | Unauthenticated players can use command | The processor is pure plumbing — each handler checks its own conditions |
 
 ## Working with Async Operations (MySQL, Bcrypt)
 

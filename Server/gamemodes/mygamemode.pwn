@@ -21,6 +21,7 @@
 #include <core/eventbus>
 #include <core/module>
 #include <core/testing>
+#include <core/commands>
 
 // --- Modules (order matters: dependencies first) ---
 #include <modules/mod_debug>
@@ -38,6 +39,9 @@ public OnGameModeInit()
 {
     // --- Framework init ---
     EventBus_Init();
+
+    // --- Core init ---
+    Cmd_Init();
 
     // --- Module init (debug first so it can log everything) ---
     Debug_Init();

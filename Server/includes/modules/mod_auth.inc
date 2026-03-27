@@ -114,7 +114,6 @@ stock Auth_Init()
     EventBus_Subscribe(EVT_PLAYER_CONNECT,    "Auth_OnPlayerConnect");
     EventBus_Subscribe(EVT_PLAYER_DISCONNECT, "Auth_OnPlayerDisconn");
     EventBus_Subscribe(EVT_DIALOG_RESPONSE,   "Auth_OnDialogResp");
-    EventBus_Subscribe(EVT_PLAYER_COMMAND,    "Auth_OnPlayerCommand");
 
     print("[MOD] Auth module initialized (MySQL + bcrypt).");
 }
@@ -239,23 +238,6 @@ public Auth_OnDialogResp()
         }
     }
     return 1;
-}
-
-// --- Command handler: block commands for unauthenticated players ---
-forward Auth_OnPlayerCommand();
-public Auth_OnPlayerCommand()
-{
-    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
-
-    // Block all commands for unauthenticated players
-    if (!g_PlayerAuth[playerid][pa_LoggedIn])
-    {
-        SendClientMessage(playerid, 0xFF4444FF, "You must be logged in to use commands.");
-        EventBus_SetResult(1); // "handled" — don't show unknown command
-        return 1;
-    }
-
-    return 0;
 }
 
 // =============================================================================
