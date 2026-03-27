@@ -9,6 +9,14 @@
 # OMP server files
 Server/log.txt
 Server/bans.json
+Server/logs/
+
+# Dependencies (downloaded by sampctl)
+Server/dependencies/
+Server/plugins/
+
+# Build artifacts
+Server/sampctl_build_file.inc
 
 # Tools
 Server/qawno/

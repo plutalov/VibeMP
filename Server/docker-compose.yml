@@ -1,0 +1,32 @@
+services:
+  mysql:
+    image: mysql:5.7
+    container_name: samp-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: samp_rpg
+      MYSQL_USER: samp
+      MYSQL_PASSWORD: samppass
+    command: --skip-ssl
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-usamp", "-psamppass"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  flyway:
+    image: flyway/flyway
+    container_name: samp-flyway
+    depends_on:
+      mysql:
+        condition: service_healthy
+    command: -url=jdbc:mysql://mysql:3306/samp_rpg -user=samp -password=samppass -connectRetries=10 migrate
+    volumes:
+      - ./sql:/flyway/sql
+
+volumes:
+  mysql_data:

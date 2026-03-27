@@ -1,12 +1,65 @@
 {
 	"version": 1,
-	"generated": "2026-03-27T20:45:26.7097365Z",
+	"generated": "2026-03-27T22:30:54.5035294Z",
 	"sampctl_version": "",
-	"dependencies": {},
+	"dependencies": {
+		"github.com/Sreyas-Sreelal/samp-bcrypt": {
+			"constraint": ":0.4.1",
+			"resolved": "0.4.1",
+			"commit": "c60e68d483a95d109855fdd7517425c0363fd10c",
+			"integrity": "commit:c60e68d483a95d109855fdd7517425c0363fd10c",
+			"site": "github.com",
+			"user": "Sreyas-Sreelal",
+			"repo": "samp-bcrypt"
+		},
+		"github.com/pBlueG/SA-MP-MySQL": {
+			"constraint": ":R41",
+			"resolved": "R41",
+			"commit": "d0a9b3de4c87c4269777a271ad4f7680730f98d8",
+			"integrity": "commit:d0a9b3de4c87c4269777a271ad4f7680730f98d8",
+			"site": "github.com",
+			"user": "pBlueG",
+			"repo": "SA-MP-MySQL"
+		},
+		"github.com/sampctl/pawn-stdlib": {
+			"constraint": "",
+			"resolved": "HEAD",
+			"commit": "e96507d9a6ddaae5bb0f3ec31479ba805aeff964",
+			"integrity": "commit:e96507d9a6ddaae5bb0f3ec31479ba805aeff964",
+			"site": "github.com",
+			"user": "sampctl",
+			"repo": "pawn-stdlib"
+		}
+	},
+	"runtime": {
+		"version": "0.3.7",
+		"platform": "windows",
+		"runtime_type": "",
+		"files": [
+			{
+				"path": "announce.exe",
+				"size": 40960,
+				"hash": "2a0270ee3766ff09dfcb2aa70316c4076c6c713154784c9b324509d66c019a26",
+				"mode": 438
+			},
+			{
+				"path": "samp-npc.exe",
+				"size": 282624,
+				"hash": "a6d912e93d0b3569bd228106e678c46227c90faf360b6fee24b9027b021605e7",
+				"mode": 438
+			},
+			{
+				"path": "samp-server.exe",
+				"size": 950272,
+				"hash": "62f846ce73ec301125c2eb896cf24ce6a5d02c0be6e897cdd358bc84287fe320",
+				"mode": 438
+			}
+		]
+	},
 	"build": {
 		"compiler_preset": "samp",
 		"entry": "gamemodes/mygamemode.pwn",
 		"output": "gamemodes/mygamemode.amx",
-		"output_hash": "sha256:7e733dbec46db8856b7a82ad8fa0c318cfded38533145d39546a1a4b99d99e64"
+		"output_hash": "sha256:609d110556ab08a89f90b2f0714761d8240ab6a3fef065fb1f328d9078414404"
 	}
 }

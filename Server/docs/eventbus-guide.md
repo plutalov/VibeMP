@@ -155,3 +155,54 @@ If you're handling EVT_PLAYER_DEATH, don't emit EVT_PLAYER_DEATH inside that han
 ### 5. Init Order = Priority
 
 First module to subscribe gets called first. If handler ordering matters between modules, document it in the module's Init() comment.
+
+## Event Reference — Custom Events
+
+| Event | ID | Emitted By | Data Slots | Description |
+|-------|----|-----------|------------|-------------|
+| `EVT_PLAYER_LOGIN` | 100 | mod_auth | playerid(0) | After successful password verification |
+| `EVT_PLAYER_REGISTER` | 101 | mod_auth | playerid(0) | After new account created |
+| `EVT_PLAYER_LOGOUT` | 102 | mod_auth | playerid(0) | On disconnect if was logged in |
+| `EVT_PLAYER_DATA_LOADED` | 103 | mod_playerdata | playerid(0) | After player data loaded from DB and applied |
+| `EVT_PLAYER_DATA_SAVED` | 104 | mod_playerdata | playerid(0) | After player data saved to DB |
+| `EVT_DB_CONNECTED` | 105 | mod_db | — | After MySQL connection established |
+
+### EVT_PLAYER_DISCONNECT vs EVT_PLAYER_LOGOUT
+
+- **`EVT_PLAYER_DISCONNECT`** — fires for ALL disconnects, whether logged in or not. Use for session-level cleanup (reset arrays, clear timers).
+- **`EVT_PLAYER_LOGOUT`** — fires ONLY if the player was logged in. Use for persistence-level cleanup (save module data to DB). The player has a valid account ID at this point.
+
+### Typical event flow for a connecting player
+
+```
+OnPlayerConnect
+  → EVT_PLAYER_CONNECT
+  → (async DB query)
+  → (dialog shown)
+  → (player enters password)
+  → (async bcrypt verify)
+  → EVT_PLAYER_LOGIN
+      → mod_playerdata listens, starts async DB data load
+  → EVT_PLAYER_DATA_LOADED
+      → mod_spawn listens, calls SpawnPlayer → EVT_PLAYER_SPAWN
+```
+
+## Async Callbacks and the Event Bus
+
+MySQL and bcrypt plugins call their callbacks directly — these are NOT event bus handlers. However, inside those callbacks you should emit events to notify other modules:
+
+```pawn
+forward MyModule_OnQueryDone(playerid);
+public MyModule_OnQueryDone(playerid)
+{
+    if (!IsPlayerConnected(playerid)) return;
+
+    // Read from MySQL cache...
+
+    // Notify other modules via event bus
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_Emit(EVT_MY_CUSTOM_EVENT);
+}
+```
+
+This keeps the event bus as the single communication backbone while allowing async operations.

@@ -214,3 +214,44 @@ Similarly, use `WEAPON_FIST` instead of `0` for weapon parameters in `AddPlayerC
 | Handler name > 31 chars | Silently truncated, subscribe fails | Shorten the name |
 | Using `new` instead of `static` for module state | Other modules can see your variables | Always use `static` |
 | Emitting the same event you're handling | Cycle detection halts dispatch | Design acyclic event flows |
+| Treating MySQL callback as event handler | Callback never fires | MySQL/bcrypt callbacks are `public` functions called by plugins, not the event bus |
+| Not checking `IsPlayerConnected` in async callback | Crash or wrong player data | Player can disconnect during query — always check |
+
+## Working with Async Operations (MySQL, Bcrypt)
+
+When your module needs to do database queries or bcrypt hashing, the callbacks are called by the plugins directly — **not through the event bus**. Here's the pattern:
+
+```pawn
+// In an event handler, start an async operation
+forward MyMod_OnPlayerLogin();
+public MyMod_OnPlayerLogin()
+{
+    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
+    new query[128];
+    mysql_format(DB_GetHandle(), query, sizeof(query),
+        "SELECT * FROM my_table WHERE account_id = %d",
+        Auth_GetAccountId(playerid));
+    mysql_tquery(DB_GetHandle(), query, "MyMod_OnDataLoad", "d", playerid);
+    return 1;
+}
+
+// This is a MySQL callback, NOT an event bus handler
+forward MyMod_OnDataLoad(playerid);
+public MyMod_OnDataLoad(playerid)
+{
+    // ALWAYS check — player may have disconnected during query
+    if (!IsPlayerConnected(playerid)) return;
+
+    // Read data from MySQL cache...
+    // Then emit an event if other modules need to know
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_Emit(EVT_MY_DATA_READY);
+}
+```
+
+Key rules:
+1. MySQL/bcrypt callbacks get `forward`/`public` but are NOT subscribed via `EventBus_Subscribe`
+2. Always check `IsPlayerConnected(playerid)` at the top of every async callback
+3. Use `EventBus_Emit()` inside callbacks to notify other modules
+4. Use `DB_GetHandle()` from mod_db to get the MySQL connection handle
+5. Use `Auth_GetAccountId(playerid)` to get the player's DB row ID for queries

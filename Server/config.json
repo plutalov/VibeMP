@@ -102,7 +102,7 @@
     },
     "password": "",
     "pawn": {
-        "legacy_plugins": [],
+        "legacy_plugins": ["mysql", "samp_bcrypt"],
         "main_scripts": [
             "mygamemode 1"
         ],

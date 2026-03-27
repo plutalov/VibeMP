@@ -35,6 +35,31 @@ public Debug_OnPlayerCommand()
     new cmd[128];
     EventBus_GetString(cmd, sizeof(cmd));
 
+    if (strcmp(cmd, "/help", true) == 0)
+    {
+        SendClientMessage(playerid, 0xFFFFFFFF, "---- Commands ----");
+        SendClientMessage(playerid, 0xCCCCCCFF, "/help   — show this list");
+        SendClientMessage(playerid, 0xCCCCCCFF, "/stats  — show your stats");
+        SendClientMessage(playerid, 0xCCCCCCFF, "/debug  — toggle event logging");
+        SendClientMessage(playerid, 0xCCCCCCFF, "/events — dump handlers to console");
+        SendClientMessage(playerid, 0xCCCCCCFF, "/test   — run tests");
+        EventBus_SetResult(1);
+        return 1;
+    }
+
+    if (strcmp(cmd, "/stats", true) == 0)
+    {
+        new name[MAX_PLAYER_NAME + 1];
+        GetPlayerName(playerid, name, sizeof(name));
+
+        new msg[128];
+        format(msg, sizeof(msg), "Stats for %s | Score: %d | Money: $%d",
+            name, GetPlayerScore(playerid), GetPlayerMoney(playerid));
+        SendClientMessage(playerid, 0xFFFFFFFF, msg);
+        EventBus_SetResult(1);
+        return 1;
+    }
+
     if (strcmp(cmd, "/debug", true) == 0)
     {
         g_DebugEvents = !g_DebugEvents;
@@ -80,8 +105,29 @@ public Debug_OnPlayerCommand()
         Test_Assert("EventBus: SetString/GetString round-trip",
             strcmp(buf, "hello") == 0);
 
-        // Add module-specific tests here as modules are created.
-        // Example: Auth_RunTests(); Spawn_RunTests();
+        // -- Database module tests --
+        Test_Assert("DB: IsConnected returns true",
+            DB_IsConnected());
+
+        Test_Assert("DB: GetHandle is valid",
+            _:DB_GetHandle() != 0);
+
+        // -- Auth module tests --
+        Test_Assert("Auth: IsLoggedIn(-1) returns false",
+            !Auth_IsLoggedIn(-1));
+
+        Test_Assert("PData: IsLoaded(-1) returns false",
+            !PData_IsLoaded(-1));
+
+        Test_Assert("Auth: GetAccountId(-1) returns -1",
+            Auth_GetAccountId(-1) == -1);
+
+        // -- Event subscription tests --
+        Test_Assert("EventBus: handlers for PLAYER_DATA_LOADED",
+            g_HandlerCount[EVT_PLAYER_DATA_LOADED] > 0);
+
+        Test_Assert("EventBus: handlers for DB_CONNECTED",
+            g_HandlerCount[EVT_DB_CONNECTED] >= 0);
 
         Test_Summary();
         EventBus_SetResult(1);

@@ -13,6 +13,8 @@
 #define MIXED_SPELLINGS
 
 #include <open.mp>
+#include <a_mysql>
+#include <samp_bcrypt>
 
 // --- Core framework ---
 #include <core/events>
@@ -22,7 +24,9 @@
 
 // --- Modules (order matters: dependencies first) ---
 #include <modules/mod_debug>
+#include <modules/mod_db>
 #include <modules/mod_auth>
+#include <modules/mod_playerdata>
 #include <modules/mod_spawn>
 
 // =============================================================================
@@ -37,7 +41,9 @@ public OnGameModeInit()
 
     // --- Module init (debug first so it can log everything) ---
     Debug_Init();
+    DB_Init();
     Auth_Init();
+    PData_Init();
     Spawn_Init();
 
     // --- Server setup ---
@@ -64,7 +70,9 @@ public OnGameModeExit()
 
     // Destroy in reverse order
     Spawn_Destroy();
+    PData_Destroy();
     Auth_Destroy();
+    DB_Destroy();
     Debug_Destroy();
 
     print("[GM] Gamemode exiting.");

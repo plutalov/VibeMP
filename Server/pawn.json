@@ -3,11 +3,26 @@
 	"repo": "server",
 	"entry": "gamemodes/mygamemode.pwn",
 	"output": "gamemodes/mygamemode.amx",
+	"dependencies": [
+		"pBlueG/SA-MP-MySQL:R41",
+		"Sreyas-Sreelal/samp-bcrypt:0.4.1"
+	],
+	"runtime": {},
 	"builds": [
 		{
 			"name": "dev",
-			"args": ["-;+", "-(+", "-\\+", "-Z+", "-d3"],
-			"includes": ["qawno/include", "includes"]
+			"args": [
+				"-;+",
+				"-(+",
+				"-\\+",
+				"-Z+",
+				"-d3"
+			],
+			"includes": [
+				"qawno/include",
+				"includes"
+			],
+			"compiler": {}
 		}
 	]
 }

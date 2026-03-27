@@ -53,6 +53,9 @@
 #define EVT_PLAYER_LOGIN            100
 #define EVT_PLAYER_REGISTER         101
 #define EVT_PLAYER_LOGOUT           102
+#define EVT_PLAYER_DATA_LOADED      103  // player data loaded from DB and applied
+#define EVT_PLAYER_DATA_SAVED       104  // player data saved to DB
+#define EVT_DB_CONNECTED            105  // database connection established
 
 // Add new custom events here as modules are created.
 // Example:
@@ -114,4 +117,7 @@ stock EventBus_InitNames()
     strcat(g_EventNames[EVT_PLAYER_LOGIN],             "PLAYER_LOGIN",            32);
     strcat(g_EventNames[EVT_PLAYER_REGISTER],          "PLAYER_REGISTER",         32);
     strcat(g_EventNames[EVT_PLAYER_LOGOUT],            "PLAYER_LOGOUT",           32);
+    strcat(g_EventNames[EVT_PLAYER_DATA_LOADED],       "PLAYER_DATA_LOADED",      32);
+    strcat(g_EventNames[EVT_PLAYER_DATA_SAVED],        "PLAYER_DATA_SAVED",       32);
+    strcat(g_EventNames[EVT_DB_CONNECTED],             "DB_CONNECTED",            32);
 }
