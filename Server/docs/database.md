@@ -97,6 +97,7 @@ wsl docker compose up -d     # recreates everything from scratch
 | interior   | INT         | 0             |                      |
 | vworld     | INT         | 0             | Virtual world        |
 | created_at | DATETIME    | NOW()         |                      |
+| admin_level| INT         | 0             | 0=player,1=mod,2=admin,3=owner |
 | last_login | DATETIME    | NULL          |                      |
 
 ## Async Query Patterns

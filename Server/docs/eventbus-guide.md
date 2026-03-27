@@ -166,6 +166,8 @@ First module to subscribe gets called first. If handler ordering matters between
 | `EVT_PLAYER_DATA_LOADED` | 103 | mod_playerdata | playerid(0) | After player data loaded from DB and applied |
 | `EVT_PLAYER_DATA_SAVED` | 104 | mod_playerdata | playerid(0) | After player data saved to DB |
 | `EVT_DB_CONNECTED` | 105 | mod_db | — | After MySQL connection established |
+| `EVT_PLAYER_HELP` | 106 | mod_debug (cmd_help) | playerid(0) | Player typed /help — each module prints its commands |
+| `EVT_PLAYER_CLICK_MAP` | 29 | bridge (SA-MP) | playerid(0), float(0,1,2)=x,y,z | Player right-clicked the pause menu map |
 
 ### EVT_PLAYER_DISCONNECT vs EVT_PLAYER_LOGOUT
 
@@ -183,6 +185,7 @@ OnPlayerConnect
   → (async bcrypt verify)
   → EVT_PLAYER_LOGIN
       → mod_playerdata listens, starts async DB data load
+      → mod_admin listens, loads admin level from DB
   → EVT_PLAYER_DATA_LOADED
       → mod_spawn listens, calls SpawnPlayer → EVT_PLAYER_SPAWN
 ```

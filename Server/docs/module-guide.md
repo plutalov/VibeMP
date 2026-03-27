@@ -135,6 +135,24 @@ public cmd_mycommand(playerid, params[])
 - Max 30 characters
 - Each handler checks its own auth/permission requirements
 - No need to subscribe to `EVT_PLAYER_COMMAND` — don't use the event bus for commands
+- For admin commands, use `Admin_RequireLevel(playerid, level)` — it checks permission and sends an error message automatically:
+  ```pawn
+  if (!Admin_RequireLevel(playerid, 2)) return 1;
+  ```
+- To add your commands to `/help`, subscribe to `EVT_PLAYER_HELP` and send your command list:
+  ```pawn
+  // In Init:
+  EventBus_Subscribe(EVT_PLAYER_HELP, "MyMod_OnPlayerHelp");
+
+  // Handler:
+  forward MyMod_OnPlayerHelp();
+  public MyMod_OnPlayerHelp()
+  {
+      new playerid = EventBus_GetInt(EVD_PLAYER_ID);
+      SendClientMessage(playerid, 0xCCCCCCFF, "/mycommand — does something");
+      return 1;
+  }
+  ```
 
 ### 10. Update the compile command if needed
 
