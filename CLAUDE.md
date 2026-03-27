@@ -8,7 +8,13 @@
 - Thin bridge: `gamemodes/mygamemode.pwn` routes SA-MP callbacks to event bus
 - Docs: `Server/docs/`
 
-Compile: `./qawno/pawncc.exe gamemodes/mygamemode.pwn -ogamemodes/mygamemode.amx "-i./qawno/include" "-i./includes"`
+Compile: `sampctl build dev` (run from `Server/`, requires sampctl in PATH — installed at `C:\sampctl\sampctl.exe`)
+
+Fallback (no sampctl): `./qawno/pawncc.exe gamemodes/mygamemode.pwn -ogamemodes/mygamemode.amx "-i./qawno/include" "-i./includes"`
+
+## Resources
+
+- OMP plugin list / releases: https://forum.open.mp/forumdisplay.php?fid=32
 
 ## Rules
 

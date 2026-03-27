@@ -1,0 +1,13 @@
+{
+	"user": "sampclaude",
+	"repo": "server",
+	"entry": "gamemodes/mygamemode.pwn",
+	"output": "gamemodes/mygamemode.amx",
+	"builds": [
+		{
+			"name": "dev",
+			"args": ["-;+", "-(+", "-\\+", "-Z+", "-d3"],
+			"includes": ["qawno/include", "includes"]
+		}
+	]
+}

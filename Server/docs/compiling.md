@@ -2,17 +2,26 @@
 
 ## Prerequisites
 
-The Pawn compiler (`pawncc.exe`) is included in the `qawno/` directory. No additional installation is needed.
+- **sampctl** (recommended): installed at `C:\sampctl\sampctl.exe`, must be in PATH
+- **Fallback**: The Pawn compiler (`pawncc.exe`) is included in the `qawno/` directory
 
-## Compile Command
+## Compile with sampctl (recommended)
 
-From the `Server/` directory, run:
+From the `Server/` directory:
+
+```bash
+sampctl build dev
+```
+
+This uses the build configuration in `pawn.json` which sets up include paths and compiler flags automatically.
+
+## Compile manually (fallback)
+
+From the `Server/` directory:
 
 ```bash
 ./qawno/pawncc.exe gamemodes/mygamemode.pwn -ogamemodes/mygamemode.amx "-i./qawno/include" "-i./includes"
 ```
-
-This compiles `mygamemode.pwn` into `mygamemode.amx` in the `gamemodes/` folder, using includes from both `qawno/include/` (OMP standard) and `includes/` (our framework and modules).
 
 ## After Compiling
 
