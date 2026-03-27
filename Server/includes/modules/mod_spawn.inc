@@ -31,6 +31,16 @@
 // Track whether this is the player's first spawn after login
 static bool:g_FirstSpawn[MAX_PLAYERS];
 
+// -----------------------------------------------------------------------------
+//  Public API
+// -----------------------------------------------------------------------------
+
+stock bool:Spawn_HasSpawned(playerid)
+{
+    if (playerid < 0 || playerid >= MAX_PLAYERS) return false;
+    return !g_FirstSpawn[playerid];
+}
+
 // Pending health/armor to apply post-spawn (engine resets these on SpawnPlayer)
 static Float:g_PendingHealth[MAX_PLAYERS];
 static Float:g_PendingArmor[MAX_PLAYERS];

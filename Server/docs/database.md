@@ -179,11 +179,11 @@ We use cost 12 (defined as `BCRYPT_COST` in mod_auth.inc). Higher = slower but m
 
 ## Auto-Save
 
-`mod_auth` runs a 5-minute timer (`Auth_AutoSave`) that saves all logged-in players' data to the database. This protects against data loss if the server crashes.
+`mod_playerdata` runs a 5-minute timer (`PData_AutoSave`) that saves all logged-in players' data to the database. This protects against data loss if the server crashes.
 
 Data is also saved on:
-- Player disconnect
-- Server shutdown (in `Auth_Destroy()`)
+- Player disconnect (via `EVT_PLAYER_LOGOUT`)
+- Server shutdown (in `PData_Destroy()`)
 
 ## Troubleshooting
 
@@ -196,12 +196,17 @@ wsl docker compose ps          # Check if MySQL container is running
 wsl docker compose logs mysql  # Check for errors
 ```
 
-### "Failed to connect to MySQL"
+### "Failed to connect to MySQL" (errno 2019)
 
-Check that:
-1. MySQL container is running on port 3306
-2. Credentials in `mod_db.inc` match `docker-compose.yml`
-3. No firewall blocking localhost:3306
+This is an SSL error from `libmariadb.dll`. Known causes:
+
+1. **MySQL 8.0**: R41-4's bundled `libmariadb.dll` is too old for MySQL 8's TLS. Use **MySQL 5.7** with `--skip-ssl` (already configured in docker-compose.yml).
+2. **Missing DLLs**: `sampctl install` does NOT download `libmariadb.dll` or `log-core.dll`. Download the full release ZIP from [pBlueG/SA-MP-MySQL releases](https://github.com/pBlueG/SA-MP-MySQL/releases/tag/R41-4) and copy `libmariadb.dll` and `log-core.dll` to `Server/`.
+3. **Docker in WSL**: MySQL runs in WSL but the OMP server runs on Windows. Port 3306 forwards correctly, but MySQL 8's TLS handshake fails through this bridge. MySQL 5.7 with `--skip-ssl` works.
+
+Also check:
+- MySQL container is running on port 3306
+- Credentials in `mod_db.inc` match `docker-compose.yml`
 
 ### Plugin not loading
 
@@ -225,3 +230,16 @@ Common causes:
 - Syntax error in SQL file
 - Edited an already-applied migration (checksum mismatch)
 - Version number conflict
+
+### sampctl pawn-stdlib conflict
+
+`samp-bcrypt` depends on `pawn-stdlib` which conflicts with OMP's includes in `qawno/include/`. We keep an empty `dependencies/pawn-stdlib/` stub directory to satisfy sampctl without actually using those files.
+
+### Bcrypt plugin API differences
+
+We use **Sreyas-Sreelal/samp-bcrypt** (not lassir/bcrypt-samp). The API is different from most community tutorials:
+- `bcrypt_hash(playerid, callback, input, cost)` — playerid is first arg
+- `bcrypt_verify(playerid, callback, input, hash)` — named `verify` not `check`
+- Hash callback: `public callback(playerid, hashid)`
+- Verify callback: `public callback(playerid, bool:success)` — success directly, no `bcrypt_is_equal()`
+- Include: `samp_bcrypt.inc` (not `bcrypt.inc`)

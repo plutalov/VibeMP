@@ -83,17 +83,13 @@ stock PData_GetSavedHealth(playerid, &Float:hp, &Float:arm)
 
 stock PData_Save(playerid)
 {
-    if (!Auth_IsLoggedIn(playerid) || !g_PlayerDataLoaded[playerid])
+    if (!Auth_IsLoggedIn(playerid) || !g_PlayerDataLoaded[playerid] || !Spawn_HasSpawned(playerid))
         return;
 
     // Read current state from player
     new Float:x, Float:y, Float:z, Float:a;
     GetPlayerPos(playerid, x, y, z);
     GetPlayerFacingAngle(playerid, a);
-
-    // Don't save if player is at origin (not properly spawned yet)
-    if (x == 0.0 && y == 0.0 && z == 0.0)
-        return;
 
     new Float:hp, Float:arm;
     GetPlayerHealth(playerid, hp);
