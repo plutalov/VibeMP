@@ -9,10 +9,10 @@ The Pawn compiler (`pawncc.exe`) is included in the `qawno/` directory. No addit
 From the `Server/` directory, run:
 
 ```bash
-./qawno/pawncc.exe gamemodes/mygamemode.pwn -ogamemodes/mygamemode.amx "-i./qawno/include"
+./qawno/pawncc.exe gamemodes/mygamemode.pwn -ogamemodes/mygamemode.amx "-i./qawno/include" "-i./includes"
 ```
 
-This compiles `mygamemode.pwn` into `mygamemode.amx` in the `gamemodes/` folder, using the includes from `qawno/include/`.
+This compiles `mygamemode.pwn` into `mygamemode.amx` in the `gamemodes/` folder, using includes from both `qawno/include/` (OMP standard) and `includes/` (our framework and modules).
 
 ## After Compiling
 
