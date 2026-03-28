@@ -1,0 +1,3 @@
+[submodule "omp-src"]
+	path = omp-src
+	url = https://github.com/openmultiplayer/open.mp.git
