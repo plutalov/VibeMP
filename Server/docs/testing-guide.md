@@ -105,6 +105,7 @@ bot.sendChat("hello server");
 bot.sendCommand("/stats");
 bot.respondDialog(dialogId, buttonIndex, listItem, inputText);
   // buttonIndex: 1 = left button (OK/Login/Register), 0 = right button (Cancel/Quit)
+  // listItem: -1 for PASSWORD/INPUT/MSGBOX dialogs, row index for LIST dialogs
 bot.spawn();            // sends RequestSpawn + Spawn RPCs
 bot.requestClass(0);    // sends class selection RPC (class 0)
 ```
@@ -139,7 +140,21 @@ bot.on('requestClass',  d => { /* d.outcome, d.skin, d.x, d.y, d.z */ });
 bot.on('playerJoin',    d => { /* d.playerId, d.name, d.isNpc */ });
 bot.on('playerQuit',    d => { /* d.playerId, d.reason */ });
 bot.on('rejected',      d => { /* d.reason */ });
+bot.on('spawnInfo',     d => { /* d.skin, d.x, d.y, d.z */ });
 ```
+
+### Handling Spawn After Login/Register
+
+After successful auth, the server sends `spawnInfo` with the spawn position. The bot must call `spawn()` in response:
+
+```js
+let spawned = false;
+bot.on('spawnInfo', () => {
+    if (!spawned) { spawned = true; bot.spawn(); }
+});
+```
+
+Guard against double-spawn — the server may send `spawnInfo` twice.
 
 ---
 
@@ -188,7 +203,7 @@ assert(
 ```js
 // Dialog 1: auth
 const authDialog = await bot.waitForDialog(10000);
-bot.respondDialog(authDialog.id, 1, 0, password);
+bot.respondDialog(authDialog.id, 1, -1, password);
 
 // Dialog 2: some follow-up prompt
 const nextDialogP = bot.waitForDialog(10000);  // set up before action

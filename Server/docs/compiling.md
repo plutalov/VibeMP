@@ -62,3 +62,33 @@ The `config.json` must have the plugins listed:
 Plugin DLLs must be in `Server/plugins/`:
 - `mysql.dll` — BlueG's MySQL R41
 - `samp_bcrypt.dll` — samp-bcrypt v2.2.5
+
+## Building the RpcLogger component
+
+The RPC logger is an OMP component (DLL) for server-side packet logging. Requires VS2019 Build Tools and CMake.
+
+```bash
+# Init the OMP SDK submodule (one-time)
+git submodule update --init --recursive omp-src
+
+# Build (must be 32-bit — OMP server is x86)
+cd Server/src/RpcLogger
+mkdir build && cd build
+cmake .. -G "Visual Studio 16 2019" -A Win32
+cmake --build . --config Release
+
+# Deploy
+cp Release/RpcLogger.dll ../../components/
+```
+
+## Building the RakClient test framework
+
+Requires Node 18 LTS and VS2019 Build Tools.
+
+```bash
+cd RakClient/app
+npm install
+npx node-gyp rebuild
+```
+
+Run tests: `node tests/test-debug.js`

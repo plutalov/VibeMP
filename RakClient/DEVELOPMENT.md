@@ -132,7 +132,7 @@ The `connect(emitCallback)` on the native side stores the callback persistently 
 | `playerJoin` | `ServerJoin` (137) | `{ playerId, name, isNpc }` |
 | `playerQuit` | `ServerQuit` (138) | `{ playerId, reason }` |
 | `rejected` | `ConnectionRejected` (130) | `{ reason }` |
-| `spawnInfo` | `ScrSetSpawnInfo` (68) | *(not yet emitted — see TODO)* |
+| `spawnInfo` | `ScrSetSpawnInfo` (68) | `{ skin, x, y, z }` |
 
 **Note:** `requestClass.outcome` — `1` = class accepted (bot can spawn), `0` = rejected.
 

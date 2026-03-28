@@ -6,6 +6,9 @@
 - Core framework: `includes/core/` (events, eventbus, module, testing)
 - Game modules: `includes/modules/mod_*.inc`
 - Thin bridge: `gamemodes/mygamemode.pwn` routes SA-MP callbacks to event bus
+- E2E test client: `RakClient/` (Node.js + C++ SA-MP protocol client)
+- RPC logger component: `Server/src/RpcLogger/` (OMP plugin for server-side packet logging)
+- OMP server source (reference): `omp-src/` submodule
 - Docs: `Server/docs/`
 
 Compile: `sampctl build dev` (run from `Server/`, requires sampctl in PATH — installed at `C:\sampctl\sampctl.exe`)
@@ -30,3 +33,6 @@ Relevant docs:
 - `docs/eventbus-guide.md` — event bus mechanics, data slots, merge modes, debug commands
 - `docs/module-guide.md` — how to create modules, naming conventions, gotchas
 - `docs/compiling.md` — build instructions
+- `docs/testing-guide.md` — E2E testing with RakClient bot, test patterns, OMP quirks
+- `docs/debugging-guide.md` — all feedback channels, RPC logging (client + server), debugging recipes
+- `RakClient/DEVELOPMENT.md` — RakClient architecture, build, protocol, adding events/actions
