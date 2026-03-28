@@ -117,6 +117,7 @@ node tests/test-register.js
 |----------|---------------|
 | [CLAUDE.md](CLAUDE.md) | Project architecture and rules for AI agents |
 | [Module Guide](Server/docs/module-guide.md) | How to create modules, templates, gotchas |
+| [Module Reference](Server/docs/modules/) | Per-module docs: API, events, dependencies, commands |
 | [Event Bus Guide](Server/docs/eventbus-guide.md) | Event dispatch, data slots, merge modes |
 | [Database Guide](Server/docs/database.md) | MySQL setup, migrations, async query patterns |
 | [Testing Guide](Server/docs/testing-guide.md) | E2E testing with RakClient, test patterns |

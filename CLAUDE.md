@@ -32,6 +32,7 @@ Every change to how the system works (new merge modes, new conventions, new comp
 Relevant docs:
 - `docs/eventbus-guide.md` — event bus mechanics, data slots, merge modes, debug commands
 - `docs/module-guide.md` — how to create modules, naming conventions, gotchas
+- `docs/modules/` — per-module reference (API, events, dependencies, commands)
 - `docs/compiling.md` — build instructions
 - `docs/testing-guide.md` — E2E testing with RakClient bot, test patterns, OMP quirks
 - `docs/debugging-guide.md` — all feedback channels, RPC logging (client + server), debugging recipes
