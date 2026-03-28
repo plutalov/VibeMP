@@ -25,6 +25,9 @@ Server/npcmodes/recordings/
 Server/models/
 Server/scriptfiles/
 
+# Build artifacts (CMake / node-gyp)
+Server/src/*/build/
+
 # RakClient build artifacts
 RakClient/app/build/
 RakClient/app/node_modules/

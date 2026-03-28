@@ -51,13 +51,43 @@ Full list: `RakClient/src/SAMP/SAMPRPC.cpp`
 
 ---
 
-## 2. Server-side logging
+## 2. Server-side RPC logging (RpcLogger component)
+
+**Location:** `Server/src/RpcLogger/` (source), `Server/components/RpcLogger.dll` (deployed)
+
+Custom OMP component that hooks `NetworkInEventHandler` and `NetworkOutEventHandler` to log every RPC and packet.
+
+**Output (in server console and log.txt):**
+```
+[RPC-RECV] player=0  id=25   bits=536     ← client sent ClientJoin
+[RPC-SEND] player=0  id=139  bits=2243    ← server sent InitGame
+[RPC-RECV] player=0  id=62   bits=136     ← client sent DialogResponse
+[RPC-SEND] player=0  id=93   bits=376     ← server sent ClientMessage
+[PKT-RECV] player=0  id=207  bits=320     ← client sent sync data
+```
+
+**Build:**
+```bash
+cd Server/src/RpcLogger/build
+cmake .. -G "Visual Studio 16 2019" -A Win32
+cmake --build . --config Release
+cp Release/RpcLogger.dll ../../components/
+```
+
+Requires `omp-src` submodule with SDK initialized: `git submodule update --init --recursive omp-src`.
+
+**Enable/disable:** Remove `RpcLogger.dll` from `Server/components/` to disable. No config needed.
+
+---
+
+## 3. Server-side application logging
 
 ### OMP main log (`Server/log.txt`)
 
 Contains:
 - Component/plugin loading at startup
 - Player connect/disconnect with IP and player ID
+- RpcLogger output (if loaded)
 - Pawn `print()` / `printf()` output from gamemode and modules
 - Chat messages (if `log_chat: true` in config.json)
 
@@ -111,7 +141,7 @@ Shows every event dispatch with handler count. Useful for verifying the event ch
 
 ---
 
-## 3. Source code references
+## 4. Source code references
 
 ### RakClient source (`RakClient/`)
 
@@ -150,7 +180,7 @@ Our Pawn code:
 
 ---
 
-## 4. Debugging recipes
+## 5. Debugging recipes
 
 ### "Server ignores my RPC"
 
@@ -194,7 +224,7 @@ Compare the `[RPC-OUT]` payload between bot and real client. Common issues:
 
 ---
 
-## 5. Config switches
+## 6. Config switches
 
 ### Server config (`Server/config.json`)
 
