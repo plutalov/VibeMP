@@ -1164,6 +1164,8 @@ bool RakPeer::RPC( int* uniqueID, const char *data, unsigned int bitLength, Pack
 	assert(orderingChannel >=0 && orderingChannel < 32);
 #endif
 
+	Log("[RPC-OUT] id=%d  bits=%d", *uniqueID, bitLength);
+
 	if ( *uniqueID > 256 )
 		return false;
 
@@ -2875,11 +2877,10 @@ bool RakPeer::HandleRPCPacket( const char *data, int length, PlayerID playerId )
 		delete [] dtt;
 	} //*/// ponpon use this if you wanna identify RPCs
 
-	// Uncomment to log every incoming RPC for debugging:
-	// Log("[RPC-IN] id=%d  bits=%d  registered=%s",
-	//     (int)(intptr_t)uniqueIdentifier,
-	//     rpcParms.numberOfBitsOfData,
-	//     (rpcIndex != UNDEFINED_RPC_INDEX) ? "yes" : "NO");
+	Log("[RPC-IN] id=%d  bits=%d  registered=%s",
+		(int)(intptr_t)uniqueIdentifier,
+		rpcParms.numberOfBitsOfData,
+		(rpcIndex != UNDEFINED_RPC_INDEX) ? "yes" : "NO");
 
 	if (rpcIndex==UNDEFINED_RPC_INDEX)
 	{
