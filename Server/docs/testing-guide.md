@@ -284,13 +284,56 @@ Then rebuild: `npx node-gyp rebuild`
 
 ---
 
+## Writing Tests for New Features (record-and-replay workflow)
+
+RakClient doesn't fully mimic a real SA-MP client — it may miss protocol details that OMP expects (like `requestClass(0)` before dialog responses, or `listItem=-1` for non-list dialogs). When writing tests for a new gameplay flow, use this workflow:
+
+### Step 1: Record the real client session
+
+1. Ensure RpcLogger component is loaded (`Server/components/RpcLogger.dll`)
+2. Clear the log: `> Server/log.txt`
+3. Start the server
+4. Connect with a real SA-MP client and walk through the flow manually
+5. Disconnect
+
+### Step 2: Extract the RPC trace
+
+```bash
+grep "RPC-RECV\|RPC-SEND" Server/log.txt > trace.txt
+```
+
+This gives you the exact sequence of RPCs the server saw — both what the real client sent (`RPC-RECV`) and what the server responded with (`RPC-SEND`).
+
+### Step 3: Reconstruct in the bot test
+
+Translate each `RPC-RECV` line into a bot action and each `RPC-SEND` into a `waitFor*` assertion:
+
+| Server log | Bot test code |
+|------------|---------------|
+| `RPC-RECV id=25` (ClientJoin) | `bot.connect()` |
+| `RPC-RECV id=128` (RequestClass) | `bot.requestClass(0)` |
+| `RPC-SEND id=61` (Dialog) | `await bot.waitForDialog()` |
+| `RPC-RECV id=62` (DialogResponse) | `bot.respondDialog(...)` |
+| `RPC-SEND id=93` (ClientMessage) | `await bot.waitForMessage(...)` |
+| `RPC-SEND id=68` (SetSpawnInfo) | `await bot.waitFor('spawnInfo')` |
+| `RPC-RECV id=52` (Spawn) | `bot.spawn()` |
+| `RPC-RECV id=50` (ServerCommand) | `bot.sendCommand('/cmd')` |
+
+### Step 4: Run and compare
+
+Run the bot test and compare its `[RPC-OUT]` / `[RPC-IN]` output with the recorded trace. They should match. If the server ignores a bot RPC that worked from the real client, the trace shows what intermediate RPCs are missing.
+
+**Example**: This workflow revealed that OMP requires `RequestClass` (id=128) before processing `DialogResponse` (id=62). The real client trace showed `RECV id=128` appearing before `RECV id=62`, but the bot was skipping it entirely. See `Server/docs/rpc-trace-reference.md` for the full annotated recording.
+
+---
+
 ## Planned Tests
 
 | Test File | What It Covers | Status |
 |-----------|----------------|--------|
 | `test-events.js` | gameInit + dialog arrive | Done |
-| `test-debug.js` | All-event logger, 20s | Done |
-| `test-register.js` | Full registration flow | In progress |
+| `test-debug.js` | All-event logger with full flow | Done |
+| `test-register.js` | Registration + spawn + walk + /help | Done |
 | `test-login.js` | Login + data restore | Planned |
 | `test-admin.js` | Admin commands | Planned |
 | `test-commands.js` | Basic command routing | Planned |
