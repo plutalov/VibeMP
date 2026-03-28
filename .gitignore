@@ -40,5 +40,8 @@ RakClient/app/node_modules/
 # RakSAMP (original, not our fork)
 RakSAMP/
 
+# IDE
+.idea/
+
 # Claude
 .claude/
