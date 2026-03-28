@@ -25,5 +25,17 @@ Server/npcmodes/recordings/
 Server/models/
 Server/scriptfiles/
 
+# RakClient build artifacts
+RakClient/app/build/
+RakClient/app/node_modules/
+*.node
+*.obj
+*.ilk
+*.exp
+*.lib
+
+# RakSAMP (original, not our fork)
+RakSAMP/
+
 # Claude
 .claude/

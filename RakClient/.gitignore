@@ -1,0 +1,8 @@
+app/build/
+app/node_modules/
+*.node
+*.obj
+*.pdb
+*.ilk
+*.exp
+*.lib
