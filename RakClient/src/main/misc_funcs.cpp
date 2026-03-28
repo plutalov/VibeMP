@@ -168,13 +168,13 @@ void sampSpawn()
 		settings.fNormalModePos[2] = SpawnInfo.vecPos[2];
 		settings.fNormalModeRot = SpawnInfo.fRotation;
 	}
-	
-	RakNet::BitStream bsSendRequestSpawn;
-	pRakClient->RPC(&RPC_RequestSpawn, &bsSendRequestSpawn, HIGH_PRIORITY, RELIABLE, 0, FALSE, UNASSIGNED_NETWORK_ID, NULL);
 
+	// Real SA-MP client only sends Spawn (id=52) — the server already sent
+	// RequestSpawn (id=129) as a "go ahead" signal. Don't re-request.
 	RakNet::BitStream bsSendSpawn;
 	pRakClient->RPC(&RPC_Spawn, &bsSendSpawn, HIGH_PRIORITY, RELIABLE, 0, FALSE, UNASSIGNED_NETWORK_ID, NULL);
-	
+
+	iSpawned = 1;
 	bIsSpectating = 0;
 
 	Log("You have been spawned!");

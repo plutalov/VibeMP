@@ -106,8 +106,9 @@ bot.sendCommand("/stats");
 bot.respondDialog(dialogId, buttonIndex, listItem, inputText);
   // buttonIndex: 1 = left button (OK/Login/Register), 0 = right button (Cancel/Quit)
   // listItem: -1 for PASSWORD/INPUT/MSGBOX dialogs, row index for LIST dialogs
-bot.spawn();            // sends RequestSpawn + Spawn RPCs
-bot.requestClass(0);    // sends class selection RPC (class 0)
+bot.spawn();            // sends Spawn RPC (id=52) only
+bot.requestClass(0);    // sends class selection — MUST be called after gameInit
+bot.setPosition(x, y, z, angle);  // updates reported position (synced automatically)
 ```
 
 ### Waiting for Events
@@ -143,18 +144,34 @@ bot.on('rejected',      d => { /* d.reason */ });
 bot.on('spawnInfo',     d => { /* d.skin, d.x, d.y, d.z */ });
 ```
 
-### Handling Spawn After Login/Register
-
-After successful auth, the server sends `spawnInfo` with the spawn position. The bot must call `spawn()` in response:
+### High-level Helpers
 
 ```js
-let spawned = false;
-bot.on('spawnInfo', () => {
-    if (!spawned) { spawned = true; bot.spawn(); }
-});
+// Connect, requestClass(0), wait for first dialog — for tests that don't need
+// to test the connect/class-selection boundary explicitly
+const { gameInit, dialog } = await bot.connectAndInit(timeout);
+
+// Move in a straight line (async, resolves when done)
+await bot.walk(toX, toY, toZ, { fromX, fromY, fromZ, steps: 5, duration: 1000 });
+
+// Async pause
+await bot.sleep(500);
 ```
 
-Guard against double-spawn — the server may send `spawnInfo` twice.
+### Handling Spawn After Login/Register
+
+After successful auth, the server sends `spawnInfo` with the spawn position. Set up the waiter **before** responding to the dialog (events arrive in one batch), then call `spawn()` after receiving it:
+
+```js
+const spawnInfoP = bot.waitFor('spawnInfo', 15000);
+
+bot.respondDialog(dialog.id, 1, -1, password);
+
+const spawnInfo = await spawnInfoP;
+bot.spawn();
+```
+
+The server sends `spawnInfo` twice (once for initial spawn, once for respawn-after-death config). Only call `spawn()` once.
 
 ---
 

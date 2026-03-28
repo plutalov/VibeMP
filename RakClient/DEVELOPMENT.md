@@ -146,9 +146,17 @@ The `connect(emitCallback)` on the native side stores the callback persistently 
 | `disconnect()` | *(RakNet disconnect)* | Stops timer, destroys interface |
 | `sendChat(text)` | `RPC_Chat` | |
 | `sendCommand(cmd)` | `RPC_ServerCommand` | Must include leading `/` |
-| `respondDialog(id, btn, item, text)` | `RPC_DialogResponse` | |
-| `spawn()` | `RPC_RequestSpawn` + `RPC_Spawn` | Also uses SpawnInfo from last RequestClass |
-| `requestClass(classId)` | `RPC_RequestClass` | Triggers server OnPlayerRequestClass |
+| `respondDialog(id, btn, item, text)` | `RPC_DialogResponse` | listItem must be -1 for non-list dialogs |
+| `spawn()` | `RPC_Spawn` | Only Spawn (id=52) — server already sent RequestSpawn |
+| `requestClass(classId)` | `RPC_RequestClass` | Must be sent after gameInit, before dialog response |
+| `setPosition(x, y, z, angle)` | *(updates sync data)* | Position sent automatically via onfoot sync every ~30ms |
+
+**Auto sync**: After `spawn()`, the bot automatically sends `ID_PLAYER_SYNC` (onfoot sync) packets at the configured rate. `setPosition()` updates the reported position; the sync timer handles the actual sending.
+
+**High-level helpers** (in `rak-client.js`):
+- `connectAndInit(timeout)` — connect + waitForGameInit + requestClass(0) + waitForDialog. Returns `{ gameInit, dialog }`.
+- `walk(toX, toY, toZ, { fromX, fromY, fromZ, steps, duration })` — move in a straight line over time.
+- `sleep(ms)` — async pause.
 
 ---
 

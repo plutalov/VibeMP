@@ -55,6 +55,10 @@ static void NetworkTick(uv_timer_t* handle) {
         Log(id > 0 ? "Connected" : "Connection failed");
         IsConnectionRequired = false;
     }
+    // Send periodic onfoot sync data (like the real client does ~30fps)
+    if (iGameInited && iSpawned) {
+        onFootUpdateAtNormalPos();
+    }
 }
 
 // ------------------------------------------------------------------
@@ -158,6 +162,24 @@ NAN_METHOD(RequestClassJS) {
 }
 
 // ------------------------------------------------------------------
+// setPosition(x, y, z, angle)
+// Updates the bot's reported position. Sync data is sent automatically
+// by the NetworkTick timer via onFootUpdateAtNormalPos().
+// ------------------------------------------------------------------
+NAN_METHOD(SetPositionJS) {
+    if (info.Length() < 3) {
+        Nan::ThrowTypeError("setPosition(x, y, z [, angle])");
+        return;
+    }
+    settings.fNormalModePos[0] = (float)Nan::To<double>(info[0]).FromJust();
+    settings.fNormalModePos[1] = (float)Nan::To<double>(info[1]).FromJust();
+    settings.fNormalModePos[2] = (float)Nan::To<double>(info[2]).FromJust();
+    if (info.Length() > 3) {
+        settings.fNormalModeRot = (float)Nan::To<double>(info[3]).FromJust();
+    }
+}
+
+// ------------------------------------------------------------------
 // Module init
 // ------------------------------------------------------------------
 NAN_MODULE_INIT(Init) {
@@ -175,6 +197,8 @@ NAN_MODULE_INIT(Init) {
              Nan::GetFunction(Nan::New<v8::FunctionTemplate>(SpawnJS)).ToLocalChecked());
     Nan::Set(target, Nan::New("requestClass").ToLocalChecked(),
              Nan::GetFunction(Nan::New<v8::FunctionTemplate>(RequestClassJS)).ToLocalChecked());
+    Nan::Set(target, Nan::New("setPosition").ToLocalChecked(),
+             Nan::GetFunction(Nan::New<v8::FunctionTemplate>(SetPositionJS)).ToLocalChecked());
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Init);
