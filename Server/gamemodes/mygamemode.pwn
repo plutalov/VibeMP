@@ -28,6 +28,7 @@
 #include <modules/mod_db>
 #include <modules/mod_auth>
 #include <modules/mod_playerdata>
+#include <modules/mod_help>
 #include <modules/mod_admin>
 #include <modules/mod_spawn>
 
@@ -49,6 +50,7 @@ public OnGameModeInit()
     DB_Init();
     Auth_Init();
     PData_Init();
+    Help_Init();
     Admin_Init();
     Spawn_Init();
 
@@ -77,6 +79,7 @@ public OnGameModeExit()
     // Destroy in reverse order
     Spawn_Destroy();
     Admin_Destroy();
+    Help_Destroy();
     PData_Destroy();
     Auth_Destroy();
     DB_Destroy();
