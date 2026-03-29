@@ -100,6 +100,7 @@ stock InvUI_Init()
 {
     EventBus_RegisterModule("InvUI");
     EventBus_Subscribe(EVT_PLAYER_CLICK_PTEXTDRAW, "InvUI_OnClickTD");
+    EventBus_Subscribe(EVT_PLAYER_CLICK_TEXTDRAW,  "InvUI_OnClickGlobalTD");
     EventBus_Subscribe(EVT_PLAYER_CONNECT,          "InvUI_OnConnect");
     EventBus_Subscribe(EVT_PLAYER_DISCONNECT,       "InvUI_OnDisconn");
     EventBus_Subscribe(EVT_INV_ITEM_ADDED,          "InvUI_OnItemChanged");
@@ -495,29 +496,6 @@ public InvUI_OnClickTD()
 
     if (!g_UI[playerid][ui_Open]) return 1;
 
-    // ESC
-    if (tdid == PlayerText:INVALID_PLAYER_TEXT_DRAW)
-    {
-        if (g_UI[playerid][ui_State] == INVUI_STATE_CONTEXT)
-        {
-            InvUI_HideContextMenu(playerid);
-            InvUI_SetSlotsSelectable(playerid, true);
-            g_UI[playerid][ui_State] = INVUI_STATE_IDLE;
-            SelectTextDraw(playerid, INVUI_HOVER_COLOR);
-        }
-        else if (g_UI[playerid][ui_State] == INVUI_STATE_MOVE)
-        {
-            g_UI[playerid][ui_State] = INVUI_STATE_IDLE;
-            InvUI_RefreshAll(playerid); // un-highlight
-            SelectTextDraw(playerid, INVUI_HOVER_COLOR);
-        }
-        else
-        {
-            InvUI_Close(playerid);
-        }
-        return 1;
-    }
-
     // Close button (either one)
     if (tdid == g_UI[playerid][ui_CloseL] || tdid == g_UI[playerid][ui_CloseR])
     {
@@ -648,6 +626,37 @@ public InvUI_OnClickTD()
 //  Event: Item changed → refresh if open
 // =============================================================================
 
+// --- Global textdraw click (ESC from SelectTextDraw) ---
+forward InvUI_OnClickGlobalTD();
+public InvUI_OnClickGlobalTD()
+{
+    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
+    new Text:clickedid = Text:EventBus_GetInt(EVD_SECONDARY_ID);
+
+    if (!g_UI[playerid][ui_Open]) return 1;
+    if (clickedid != Text:INVALID_TEXT_DRAW) return 1; // not ESC
+
+    if (g_UI[playerid][ui_State] == INVUI_STATE_CONTEXT)
+    {
+        InvUI_HideContextMenu(playerid);
+        InvUI_SetSlotsSelectable(playerid, true);
+        g_UI[playerid][ui_State] = INVUI_STATE_IDLE;
+        SelectTextDraw(playerid, INVUI_HOVER_COLOR);
+    }
+    else if (g_UI[playerid][ui_State] == INVUI_STATE_MOVE)
+    {
+        g_UI[playerid][ui_State] = INVUI_STATE_IDLE;
+        InvUI_RefreshAll(playerid);
+        SelectTextDraw(playerid, INVUI_HOVER_COLOR);
+    }
+    else
+    {
+        InvUI_Close(playerid);
+    }
+    return 1;
+}
+
+// --- Item changed: refresh if open ---
 forward InvUI_OnItemChanged();
 public InvUI_OnItemChanged()
 {

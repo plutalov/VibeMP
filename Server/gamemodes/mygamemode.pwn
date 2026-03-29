@@ -263,14 +263,8 @@ public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
 
 public OnPlayerClickTextDraw(playerid, Text:clickedid)
 {
-    // When SelectTextDraw is active and player presses ESC,
-    // OMP sends this with INVALID_TEXT_DRAW. We reuse the
-    // player textdraw event with INVALID id to trigger close.
-    if (clickedid == Text:INVALID_TEXT_DRAW)
-    {
-        EventBus_SetInt(EVD_PLAYER_ID, playerid);
-        EventBus_SetInt(EVD_SECONDARY_ID, _:INVALID_PLAYER_TEXT_DRAW);
-        EventBus_Emit(EVT_PLAYER_CLICK_PTEXTDRAW);
-    }
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_SetInt(EVD_SECONDARY_ID, _:clickedid);
+    EventBus_Emit(EVT_PLAYER_CLICK_TEXTDRAW);
     return 1;
 }

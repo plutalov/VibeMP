@@ -47,6 +47,7 @@
 #define EVT_PLAYER_INTERIOR_CHANGE  28
 #define EVT_PLAYER_CLICK_MAP        29
 #define EVT_PLAYER_CLICK_PTEXTDRAW  30  // OnPlayerClickPlayerTextDraw
+#define EVT_PLAYER_CLICK_TEXTDRAW   31  // OnPlayerClickTextDraw (ESC from SelectTextDraw)
 
 // -----------------------------------------------------------------------------
 //  Custom Game Events (100+)
@@ -123,6 +124,7 @@ stock EventBus_InitNames()
     strcat(g_EventNames[EVT_PLAYER_INTERIOR_CHANGE],   "PLAYER_INTERIOR_CHANGE",  32);
     strcat(g_EventNames[EVT_PLAYER_CLICK_MAP],        "PLAYER_CLICK_MAP",        32);
     strcat(g_EventNames[EVT_PLAYER_CLICK_PTEXTDRAW],  "PLAYER_CLICK_PTEXTDRAW", 32);
+    strcat(g_EventNames[EVT_PLAYER_CLICK_TEXTDRAW],  "PLAYER_CLICK_TEXTDRAW", 32);
 
     // Custom game events
     strcat(g_EventNames[EVT_PLAYER_LOGIN],             "PLAYER_LOGIN",            32);
