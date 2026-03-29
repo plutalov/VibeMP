@@ -35,6 +35,7 @@ public Food_OnItemUse()
     new playerid    = EventBus_GetInt(EVD_PLAYER_ID);
     new templateIdx = EventBus_GetInt(EVD_SECONDARY_ID);
     new slotIdx     = EventBus_GetInt(EVD_VALUE);
+    new cIdx        = EventBus_GetInt(EVD_EXTRA); // container the item is in
 
     // Check if this is our category
     new category[MAX_CATEGORY_LEN];
@@ -52,8 +53,7 @@ public Food_OnItemUse()
     if (newHp > 100.0) newHp = 100.0;
     SetPlayerHealth(playerid, newHp);
 
-    // Consume 1 from stack
-    new cIdx = Inv_GetPlayerContainerIdx(playerid);
+    // Consume 1 from the container the item is in (not necessarily player's)
     Inv_RemoveItem(cIdx, slotIdx, 1);
 
     new msg[128];

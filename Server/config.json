@@ -110,7 +110,7 @@
     },
     "rcon": {
         "allow_teleport": false,
-        "enable": false,
+        "enable": true,
         "password": "changeme1"
     },
     "sleep": 5.0,

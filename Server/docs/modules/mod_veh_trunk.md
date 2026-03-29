@@ -1,41 +1,31 @@
 # mod_veh_trunk — Vehicle Trunk Bridge
 
-Bridge module connecting vehicles to inventory. When a persistent vehicle is created, a trunk container is loaded/created. When destroyed, the trunk is saved and freed.
-
-This is the canonical example of the **bridge pattern**: a small module that knows two domains (vehicles + inventory) and connects them via events.
-
-## Pattern for New Container Types
-
-```
-mod_house_storage  → subscribes to house events → creates container → /safe command
-mod_backpack       → subscribes to equip events → creates container → /backpack command
-```
-
-Each bridge module is self-contained. mod_inventory and mod_inventory_ui never change.
+Bridge module connecting vehicles to inventory. Creates trunk containers when vehicles spawn, frees them on destroy. Owns `/trunk` command.
 
 ## Public API
 
-None. Only the `/trunk` command and event handlers.
+None.
 
 ## Events
 
 | Direction | Event | Action |
 |-----------|-------|--------|
-| Subscribes | `EVT_VEHICLE_CREATED` | Call `Inv_LoadContainerByOwner(OWNER_VEHICLE, vehDbId, 50.0)` |
-| Subscribes | `EVT_VEHICLE_DESTROYED` | Call `Inv_SaveAndFreeContainer(containerIdx)` |
-| Subscribes | `EVT_PLAYER_HELP` | Print "/trunk" in help list |
+| Subscribes | `EVT_VEHICLE_CREATED` | `Inv_LoadContainerByOwner(OWNER_VEHICLE, vehDbId, 50.0)` |
+| Subscribes | `EVT_VEHICLE_DESTROYED` | `Inv_SaveAndFreeContainer(containerIdx)` |
+| Subscribes | `EVT_PLAYER_HELP` | Print "/trunk" |
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `/trunk` | Find nearest persistent vehicle within 10m, open dual-panel inventory UI |
+| `/trunk` | Find nearest persistent vehicle within 10m, open dual-panel UI |
 
 ## Dependencies
 
 - `mod_vehicles` — `Veh_GetDbId()` (read-only)
 - `mod_inventory` — `Inv_LoadContainerByOwner()`, `Inv_FindContainerByOwner()`, `Inv_SaveAndFreeContainer()`
-- `mod_inventory_ui` — `InvUI_OpenDual()`
+- `mod_inventory_ui` — `InvUI_OpenDual(playerid, leftIdx, rightIdx, title)`
+- `mod_player_inv` — `PlayerInv_GetContainerIdx()`, `PlayerInv_IsLoaded()`
 
 ## Constants
 

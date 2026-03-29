@@ -33,6 +33,7 @@
 #include <modules/mod_spawn>
 #include <modules/mod_inventory>
 #include <modules/mod_inventory_ui>
+#include <modules/mod_player_inv>
 #include <modules/mod_vehicles>
 #include <modules/mod_veh_trunk>
 #include <modules/mod_food_temp>
@@ -61,6 +62,7 @@ public OnGameModeInit()
     Spawn_Init();
     Inv_Init();
     InvUI_Init();
+    PlayerInv_Init();
     Veh_Init();
     VehTrunk_Init();
     FoodTemp_Init();
@@ -93,6 +95,7 @@ public OnGameModeExit()
     FoodTemp_Destroy();
     VehTrunk_Destroy();
     Veh_Destroy();
+    PlayerInv_Destroy();
     InvUI_Destroy();
     Inv_Destroy();
     Spawn_Destroy();

@@ -41,6 +41,7 @@ Permission-based admin system with four levels. Loads admin level from DB on log
 | `/veh` | 2 | `/veh modelid [c1] [c2]` | Spawn vehicle at your position |
 | `/setadmin` | 3 | `/setadmin [id] [level]` | Set player's admin level (persists to DB) |
 | `/ban` | 3 | `/ban [id] [reason]` | Ban player |
+| `/gmx` | 3 | `/gmx` | Restart gamemode (GameModeExit — triggers all Destroy callbacks with blocking saves) |
 
 ## Dependencies
 

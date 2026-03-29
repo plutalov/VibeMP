@@ -395,10 +395,8 @@ static stock InvUI_SetSlotsSelectable(playerid, bool:selectable)
 //  Open / Close
 // =============================================================================
 
-stock InvUI_Open(playerid, containerIdx = INVALID_CONTAINER_IDX)
+stock InvUI_Open(playerid, containerIdx)
 {
-    if (containerIdx == INVALID_CONTAINER_IDX)
-        containerIdx = Inv_GetPlayerContainerIdx(playerid);
     if (containerIdx == INVALID_CONTAINER_IDX) return;
     if (g_UI[playerid][ui_Open]) return;
 
@@ -425,18 +423,17 @@ stock InvUI_Open(playerid, containerIdx = INVALID_CONTAINER_IDX)
     g_UI[playerid][ui_Open] = true;
 }
 
-stock InvUI_OpenDual(playerid, externalContainerIdx, const title[])
+stock InvUI_OpenDual(playerid, leftContainerIdx, rightContainerIdx, const title[])
 {
-    new playerContainer = Inv_GetPlayerContainerIdx(playerid);
-    if (playerContainer == INVALID_CONTAINER_IDX) return;
-    if (externalContainerIdx == INVALID_CONTAINER_IDX) return;
+    if (leftContainerIdx == INVALID_CONTAINER_IDX) return;
+    if (rightContainerIdx == INVALID_CONTAINER_IDX) return;
     if (g_UI[playerid][ui_Open]) return;
 
     if (!g_UI[playerid][ui_Created])
         InvUI_Create(playerid);
 
-    g_UI[playerid][ui_LeftContainer] = playerContainer;
-    g_UI[playerid][ui_RightContainer] = externalContainerIdx;
+    g_UI[playerid][ui_LeftContainer] = leftContainerIdx;
+    g_UI[playerid][ui_RightContainer] = rightContainerIdx;
     g_UI[playerid][ui_Dual] = true;
     g_UI[playerid][ui_State] = INVUI_STATE_IDLE;
 
@@ -539,7 +536,7 @@ public InvUI_OnClickTD()
         {
             InvUI_HideContextMenu(playerid);
             InvUI_SetSlotsSelectable(playerid, true);
-            Inv_PlayerUseItem(playerid, slot);
+            Inv_UseItemFromContainer(playerid, cIdx, slot);
             g_UI[playerid][ui_State] = INVUI_STATE_IDLE;
             InvUI_RefreshAll(playerid);
             SelectTextDraw(playerid, INVUI_HOVER_COLOR);

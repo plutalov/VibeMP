@@ -74,9 +74,7 @@ forward cmd_trunk(playerid, params[]);
 public cmd_trunk(playerid, params[])
 {
     #pragma unused params
-    if (!Auth_IsLoggedIn(playerid))
-        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
-    if (!Inv_IsPlayerLoaded(playerid))
+    if (!PlayerInv_IsLoaded(playerid))
         return SendClientMessage(playerid, 0xFF4444FF, "Inventory not loaded yet."), 1;
 
     // Find nearest persistent vehicle
@@ -117,6 +115,10 @@ public cmd_trunk(playerid, params[])
     if (containerIdx == INVALID_CONTAINER_IDX)
         return SendClientMessage(playerid, 0xFF4444FF, "This vehicle has no trunk loaded."), 1;
 
-    InvUI_OpenDual(playerid, containerIdx, "TRUNK");
+    new playerContainer = PlayerInv_GetContainerIdx(playerid);
+    if (playerContainer == INVALID_CONTAINER_IDX)
+        return SendClientMessage(playerid, 0xFF4444FF, "Inventory not loaded yet."), 1;
+
+    InvUI_OpenDual(playerid, playerContainer, containerIdx, "TRUNK");
     return 1;
 }

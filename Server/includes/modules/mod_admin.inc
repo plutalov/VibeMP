@@ -629,6 +629,19 @@ public cmd_ban(playerid, params[])
     return 1;
 }
 
+forward cmd_gmx(playerid, params[]);
+public cmd_gmx(playerid, params[])
+{
+    #pragma unused params
+    if (!Auth_IsLoggedIn(playerid))
+        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
+    if (!Admin_RequireLevel(playerid, 3)) return 1;
+
+    SendClientMessageToAll(0xFF4444FF, "Server is restarting...");
+    GameModeExit();
+    return 1;
+}
+
 // --- Helper: delayed kick ---
 forward Admin_DelayKick(targetid);
 public Admin_DelayKick(targetid)

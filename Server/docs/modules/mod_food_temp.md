@@ -21,30 +21,28 @@ None.
 
 ## How it works
 
-1. Player uses an item (via `/useitem` or clicking in the grid)
-2. `EVT_INV_ITEM_USE` fires with template index and metadata
-3. Handler checks `Inv_GetTemplateCategory()` — if not "medical", returns (not our item)
-4. Heals player by 25 HP (capped at 100)
-5. Removes 1 from the stack via `Inv_RemoveItem()`
+1. `EVT_INV_ITEM_USE` fires with template index, slot, and **container index in EVD_EXTRA**
+2. Handler checks category — if not "medical", returns
+3. Heals 25 HP, removes 1 from stack using the container from EVD_EXTRA
+
+**Key:** Uses `EVD_EXTRA` for container index — works whether item is in player inventory, vehicle trunk, or any other container.
 
 ## Example for module authors
-
-This module demonstrates the pattern for writing an inventory item consumer:
 
 ```pawn
 forward MyMod_OnItemUse();
 public MyMod_OnItemUse()
 {
+    new playerid    = EventBus_GetInt(EVD_PLAYER_ID);
     new templateIdx = EventBus_GetInt(EVD_SECONDARY_ID);
+    new slotIdx     = EventBus_GetInt(EVD_VALUE);
+    new cIdx        = EventBus_GetInt(EVD_EXTRA); // container the item is in
+
     new category[MAX_CATEGORY_LEN];
     Inv_GetTemplateCategory(templateIdx, category, sizeof(category));
     if (strcmp(category, "my_category") != 0) return 1; // not mine
 
-    // Handle the item...
-    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
-    new slotIdx  = EventBus_GetInt(EVD_VALUE);
-    new cIdx     = Inv_GetPlayerContainerIdx(playerid);
-    Inv_RemoveItem(cIdx, slotIdx, 1); // consume
+    Inv_RemoveItem(cIdx, slotIdx, 1); // consume from whichever container
     return 1;
 }
 ```

@@ -1,23 +1,18 @@
 // =============================================================================
-//  mod_inventory.inc — Item & container data layer
+//  mod_inventory.inc — Generic container & item data layer
 //
 //  Manages item templates, containers, and item instances.
-//  All storage is container-based: player inventory, vehicle trunk, and
-//  property storage are all containers with different owner types.
-//
-//  Load flow:
-//    EVT_DB_CONNECTED   → load all item templates from DB
-//    EVT_PLAYER_LOGIN   → load/create player container + items from DB
-//    EVT_PLAYER_LOGOUT  → save dirty items to DB
+//  Owner-agnostic: does not know or care what owns a container (player,
+//  vehicle, property, etc.). Bridge modules (mod_player_inv, mod_veh_trunk)
+//  handle the mapping between domain objects and containers.
 //
 //  Emits:
 //    EVT_INV_TEMPLATES_LOADED  — after templates loaded at startup
-//    EVT_INV_PLAYER_LOADED     — after player's items loaded
 //    EVT_INV_ITEM_ADDED        — item added to any container
 //    EVT_INV_ITEM_REMOVED      — item removed from any container
-//    EVT_INV_ITEM_USE          — player used an item (domain modules handle)
+//    EVT_INV_ITEM_MOVED        — item moved between containers
 //
-//  Depends on: mod_db, mod_auth
+//  Depends on: mod_db
 // =============================================================================
 
 #if defined _mod_inventory_included
@@ -48,9 +43,6 @@
 
 #define INVALID_TEMPLATE_IDX    (-1)
 #define INVALID_CONTAINER_IDX   (-1)
-
-// Dialog IDs for inventory
-#define DIALOG_INV_USE          50
 
 // -----------------------------------------------------------------------------
 //  Item Templates (loaded from DB once at startup)
@@ -105,12 +97,6 @@ enum E_CONTAINER_ITEM
 
 static g_Items[MAX_CONTAINERS][MAX_ITEMS_PER_CONTAINER][E_CONTAINER_ITEM];
 
-// -----------------------------------------------------------------------------
-//  Per-player shortcuts
-// -----------------------------------------------------------------------------
-
-static g_PlayerContainerIdx[MAX_PLAYERS];
-static bool:g_InvLoaded[MAX_PLAYERS];
 static g_AutoSaveTimer = -1;
 
 // =============================================================================
@@ -171,18 +157,6 @@ stock Inv_FindTemplateByName(const name[])
 //  Public API — Containers
 // =============================================================================
 
-stock Inv_GetPlayerContainerIdx(playerid)
-{
-    if (playerid < 0 || playerid >= MAX_PLAYERS) return INVALID_CONTAINER_IDX;
-    return g_PlayerContainerIdx[playerid];
-}
-
-stock bool:Inv_IsPlayerLoaded(playerid)
-{
-    if (playerid < 0 || playerid >= MAX_PLAYERS) return false;
-    return g_InvLoaded[playerid];
-}
-
 stock Float:Inv_GetContainerWeight(containerIdx)
 {
     if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return 0.0;
@@ -205,6 +179,25 @@ stock Float:Inv_GetContainerMaxWeight(containerIdx)
 // =============================================================================
 //  Public API — Items
 // =============================================================================
+
+/// Use an item from any container. Emits EVT_INV_ITEM_USE with container index
+/// in EVD_EXTRA so domain modules know which container to remove from.
+stock Inv_UseItemFromContainer(playerid, containerIdx, slotIdx)
+{
+    if (!Inv_IsSlotActive(containerIdx, slotIdx)) return 0;
+
+    new templateIdx = Inv_GetItemTemplateIdx(containerIdx, slotIdx);
+    new meta[MAX_METADATA_LEN];
+    Inv_GetItemMetadata(containerIdx, slotIdx, meta, sizeof(meta));
+
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_SetInt(EVD_SECONDARY_ID, templateIdx);
+    EventBus_SetInt(EVD_VALUE, slotIdx);
+    EventBus_SetInt(EVD_EXTRA, containerIdx);
+    EventBus_SetString(meta);
+    EventBus_Emit(EVT_INV_ITEM_USE);
+    return 1;
+}
 
 stock Inv_GetItemTemplateIdx(containerIdx, slotIdx)
 {
@@ -383,59 +376,17 @@ stock Inv_RemoveItem(containerIdx, slotIdx, quantity)
 }
 
 // =============================================================================
-//  Public API — Player convenience wrappers
-// =============================================================================
-
-stock Inv_PlayerAddItem(playerid, templateIdx, quantity, const metadata[])
-{
-    new cIdx = Inv_GetPlayerContainerIdx(playerid);
-    if (cIdx == INVALID_CONTAINER_IDX) return -1;
-    new result = Inv_AddItem(cIdx, templateIdx, quantity, metadata);
-    // Override event playerid
-    if (result != -1)
-    {
-        // The event was already emitted by Inv_AddItem with playerid=-1.
-        // For player actions, re-emit is wasteful. For now, the consumer
-        // can check the container owner. TODO: consider passing playerid through.
-    }
-    return result;
-}
-
-stock Inv_PlayerRemoveItem(playerid, slotIdx, quantity)
-{
-    new cIdx = Inv_GetPlayerContainerIdx(playerid);
-    if (cIdx == INVALID_CONTAINER_IDX) return 0;
-    return Inv_RemoveItem(cIdx, slotIdx, quantity);
-}
-
-stock Inv_PlayerUseItem(playerid, slotIdx)
-{
-    new cIdx = Inv_GetPlayerContainerIdx(playerid);
-    if (cIdx == INVALID_CONTAINER_IDX) return 0;
-    if (!Inv_IsSlotActive(cIdx, slotIdx)) return 0;
-
-    new templateIdx = g_Items[cIdx][slotIdx][ci_TemplateIdx];
-
-    // Emit use event — domain modules handle specific categories
-    EventBus_SetInt(EVD_PLAYER_ID, playerid);
-    EventBus_SetInt(EVD_SECONDARY_ID, templateIdx);
-    EventBus_SetInt(EVD_VALUE, slotIdx);
-    EventBus_SetString(g_Items[cIdx][slotIdx][ci_Metadata]);
-    EventBus_Emit(EVT_INV_ITEM_USE);
-    return 1;
-}
-
-// =============================================================================
 //  DB Save
 // =============================================================================
 
-stock Inv_Save(containerIdx)
+stock Inv_Save(containerIdx, bool:blocking = false)
 {
     if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
     if (!g_Containers[containerIdx][cnt_Active]) return;
 
     new cntDbId = g_Containers[containerIdx][cnt_DbId];
     new query[512];
+    new MySQL:db = DB_GetHandle();
 
     for (new i = 0; i < MAX_ITEMS_PER_CONTAINER; i++)
     {
@@ -444,10 +395,11 @@ stock Inv_Save(containerIdx)
         if (g_Items[containerIdx][i][ci_Deleted] && g_Items[containerIdx][i][ci_DbId] > 0)
         {
             // DELETE
-            mysql_format(DB_GetHandle(), query, sizeof(query),
+            mysql_format(db, query, sizeof(query),
                 "DELETE FROM container_items WHERE id = %d",
                 g_Items[containerIdx][i][ci_DbId]);
-            mysql_tquery(DB_GetHandle(), query);
+            if (blocking) mysql_query(db, query);
+            else mysql_tquery(db, query);
             g_Items[containerIdx][i][ci_Active] = false;
             g_Items[containerIdx][i][ci_Dirty] = false;
             g_Items[containerIdx][i][ci_Deleted] = false;
@@ -456,23 +408,31 @@ stock Inv_Save(containerIdx)
         {
             // INSERT
             new tplDbId = g_Templates[g_Items[containerIdx][i][ci_TemplateIdx]][tpl_DbId];
-            mysql_format(DB_GetHandle(), query, sizeof(query),
+            mysql_format(db, query, sizeof(query),
                 "INSERT INTO container_items (container_id, slot, template_id, quantity, metadata) \
                  VALUES (%d, %d, %d, %d, '%e')",
                 cntDbId, i, tplDbId,
                 g_Items[containerIdx][i][ci_Quantity],
                 g_Items[containerIdx][i][ci_Metadata]);
-            mysql_tquery(DB_GetHandle(), query, "Inv_OnItemInserted", "dd", containerIdx, i);
+            if (blocking)
+            {
+                new Cache:result = mysql_query(db, query);
+                g_Items[containerIdx][i][ci_DbId] = cache_insert_id();
+                cache_delete(result);
+            }
+            else
+                mysql_tquery(db, query, "Inv_OnItemInserted", "dd", containerIdx, i);
         }
         else if (g_Items[containerIdx][i][ci_DbId] > 0 && g_Items[containerIdx][i][ci_Active])
         {
             // UPDATE
-            mysql_format(DB_GetHandle(), query, sizeof(query),
+            mysql_format(db, query, sizeof(query),
                 "UPDATE container_items SET slot=%d, quantity=%d, metadata='%e' WHERE id=%d",
                 i, g_Items[containerIdx][i][ci_Quantity],
                 g_Items[containerIdx][i][ci_Metadata],
                 g_Items[containerIdx][i][ci_DbId]);
-            mysql_tquery(DB_GetHandle(), query);
+            if (blocking) mysql_query(db, query);
+            else mysql_tquery(db, query);
         }
 
         g_Items[containerIdx][i][ci_Dirty] = false;
@@ -506,12 +466,12 @@ stock Inv_FindContainerByOwner(ownerType, ownerId)
 
 /// Save dirty items and release a container's memory slot.
 /// Does NOT delete the container from DB — data persists for next load.
-stock Inv_SaveAndFreeContainer(containerIdx)
+stock Inv_SaveAndFreeContainer(containerIdx, bool:blocking = false)
 {
     if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
     if (!g_Containers[containerIdx][cnt_Active]) return;
 
-    Inv_Save(containerIdx);
+    Inv_Save(containerIdx, blocking);
 
     // Clear items
     for (new i = 0; i < MAX_ITEMS_PER_CONTAINER; i++)
@@ -814,11 +774,7 @@ stock Inv_MoveItem(srcContainer, srcSlot, dstContainer, dstSlot)
 stock Inv_Init()
 {
     EventBus_RegisterModule("Inventory");
-    EventBus_Subscribe(EVT_DB_CONNECTED,      "Inv_OnDBConnected");
-    EventBus_Subscribe(EVT_PLAYER_LOGIN,      "Inv_OnPlayerLogin");
-    EventBus_Subscribe(EVT_PLAYER_LOGOUT,     "Inv_OnPlayerLogout");
-    EventBus_Subscribe(EVT_PLAYER_DISCONNECT, "Inv_OnPlayerDisconn");
-    EventBus_Subscribe(EVT_PLAYER_HELP,       "Inv_OnPlayerHelp");
+    EventBus_Subscribe(EVT_DB_CONNECTED, "Inv_OnDBConnected");
 
     // Reset state
     g_TemplateCount = 0;
@@ -827,11 +783,6 @@ stock Inv_Init()
         g_TemplateDbToIdx[i] = INVALID_TEMPLATE_IDX;
     for (new i = 0; i < MAX_CONTAINERS; i++)
         g_Containers[i][cnt_Active] = false;
-    for (new i = 0; i < MAX_PLAYERS; i++)
-    {
-        g_PlayerContainerIdx[i] = INVALID_CONTAINER_IDX;
-        g_InvLoaded[i] = false;
-    }
 
     g_AutoSaveTimer = SetTimer("Inv_AutoSave", INV_AUTOSAVE_INTERVAL, true);
     print("[MOD] Inventory module initialized.");
@@ -854,11 +805,11 @@ stock Inv_Destroy()
         g_AutoSaveTimer = -1;
     }
 
-    // Save all active player inventories
-    for (new i = 0; i < MAX_PLAYERS; i++)
+    // Save all active containers (blocking — server is shutting down)
+    for (new i = 0; i < MAX_CONTAINERS; i++)
     {
-        if (IsPlayerConnected(i) && g_InvLoaded[i])
-            Inv_Save(g_PlayerContainerIdx[i]);
+        if (g_Containers[i][cnt_Active])
+            Inv_Save(i, true);
     }
 
     print("[MOD] Inventory module destroyed.");
@@ -909,102 +860,47 @@ public Inv_OnTemplatesLoaded()
     EventBus_Emit(EVT_INV_TEMPLATES_LOADED);
 }
 
-// --- Player Login: load/create container + items ---
-forward Inv_OnPlayerLogin();
-public Inv_OnPlayerLogin()
+// Player-specific handlers moved to mod_player_inv.inc
+
+// =============================================================================
+//  Container lifecycle helpers (used by bridge modules)
+// =============================================================================
+
+/// Allocate a free container slot in memory. Returns index or -1.
+stock Inv_AllocContainer()
 {
-    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
-    if (!g_TemplatesLoaded) return 1; // templates not ready yet
-
-    new accountId = Auth_GetAccountId(playerid);
-    if (accountId < 0) return 1;
-
-    new query[256];
-    mysql_format(DB_GetHandle(), query, sizeof(query),
-        "SELECT id, max_weight FROM containers WHERE owner_type = 'player' AND owner_id = %d LIMIT 1",
-        accountId);
-    mysql_tquery(DB_GetHandle(), query, "Inv_OnContainerLoad", "d", playerid);
-    return 1;
+    for (new i = 0; i < MAX_CONTAINERS; i++)
+        if (!g_Containers[i][cnt_Active]) return i;
+    return -1;
 }
 
-forward Inv_OnContainerLoad(playerid);
-public Inv_OnContainerLoad(playerid)
+/// Initialize a container slot with known values (after DB INSERT).
+stock Inv_InitContainer(containerIdx, dbId, ownerType, ownerId, Float:maxWeight)
 {
-    if (!IsPlayerConnected(playerid)) return;
-
-    new rows;
-    cache_get_row_count(rows);
-
-    new containerIdx = -1;
-
-    if (rows > 0)
-    {
-        // Container exists — allocate a slot
-        containerIdx = Inv_AllocContainer();
-        if (containerIdx == -1)
-        {
-            printf("[INV] ERROR: No free container slots for playerid=%d", playerid);
-            return;
-        }
-
-        cache_get_value_name_int(0, "id", g_Containers[containerIdx][cnt_DbId]);
-        cache_get_value_name_float(0, "max_weight", g_Containers[containerIdx][cnt_MaxWeight]);
-        g_Containers[containerIdx][cnt_OwnerType] = OWNER_PLAYER;
-        g_Containers[containerIdx][cnt_OwnerId] = Auth_GetAccountId(playerid);
-        g_Containers[containerIdx][cnt_Active] = true;
-
-        g_PlayerContainerIdx[playerid] = containerIdx;
-
-        // Now load items for this container
-        new query[128];
-        mysql_format(DB_GetHandle(), query, sizeof(query),
-            "SELECT id, template_id, quantity, slot, metadata FROM container_items WHERE container_id = %d",
-            g_Containers[containerIdx][cnt_DbId]);
-        mysql_tquery(DB_GetHandle(), query, "Inv_OnItemsLoad", "dd", playerid, containerIdx);
-    }
-    else
-    {
-        // New player — create container
-        new accountId = Auth_GetAccountId(playerid);
-        new query[128];
-        mysql_format(DB_GetHandle(), query, sizeof(query),
-            "INSERT INTO containers (owner_type, owner_id, max_weight) VALUES ('player', %d, %f)",
-            accountId, INV_DEFAULT_MAX_WEIGHT);
-        mysql_tquery(DB_GetHandle(), query, "Inv_OnContainerCreated", "d", playerid);
-    }
-}
-
-forward Inv_OnContainerCreated(playerid);
-public Inv_OnContainerCreated(playerid)
-{
-    if (!IsPlayerConnected(playerid)) return;
-
-    new containerIdx = Inv_AllocContainer();
-    if (containerIdx == -1)
-    {
-        printf("[INV] ERROR: No free container slots for new player %d", playerid);
-        return;
-    }
-
-    g_Containers[containerIdx][cnt_DbId] = cache_insert_id();
-    g_Containers[containerIdx][cnt_OwnerType] = OWNER_PLAYER;
-    g_Containers[containerIdx][cnt_OwnerId] = Auth_GetAccountId(playerid);
-    g_Containers[containerIdx][cnt_MaxWeight] = INV_DEFAULT_MAX_WEIGHT;
+    if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
+    g_Containers[containerIdx][cnt_DbId] = dbId;
+    g_Containers[containerIdx][cnt_OwnerType] = ownerType;
+    g_Containers[containerIdx][cnt_OwnerId] = ownerId;
+    g_Containers[containerIdx][cnt_MaxWeight] = maxWeight;
     g_Containers[containerIdx][cnt_Active] = true;
-
-    g_PlayerContainerIdx[playerid] = containerIdx;
-    g_InvLoaded[playerid] = true;
-
-    printf("[INV] Created container (db=%d) for playerid=%d", g_Containers[containerIdx][cnt_DbId], playerid);
-
-    EventBus_SetInt(EVD_PLAYER_ID, playerid);
-    EventBus_Emit(EVT_INV_PLAYER_LOADED);
 }
 
-forward Inv_OnItemsLoad(playerid, containerIdx);
-public Inv_OnItemsLoad(playerid, containerIdx)
+/// Populate a container slot from MySQL cache row (after SELECT).
+stock Inv_SetContainerFromCache(containerIdx, row, ownerType, ownerId)
 {
-    if (!IsPlayerConnected(playerid)) return;
+    if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
+    cache_get_value_name_int(row, "id", g_Containers[containerIdx][cnt_DbId]);
+    cache_get_value_name_float(row, "max_weight", g_Containers[containerIdx][cnt_MaxWeight]);
+    g_Containers[containerIdx][cnt_OwnerType] = ownerType;
+    g_Containers[containerIdx][cnt_OwnerId] = ownerId;
+    g_Containers[containerIdx][cnt_Active] = true;
+}
+
+/// Load items from current MySQL cache into a container's slots.
+/// Call this inside an async callback after querying container_items.
+stock Inv_LoadItemsFromCache(containerIdx)
+{
+    if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
 
     new rows;
     cache_get_row_count(rows);
@@ -1021,16 +917,11 @@ public Inv_OnItemsLoad(playerid, containerIdx)
         cache_get_value_name(i, "metadata", meta, MAX_METADATA_LEN);
 
         new tplIdx = Inv_FindTemplateByDbId(tplDbId);
-        if (tplIdx == INVALID_TEMPLATE_IDX)
-        {
-            printf("[INV] WARNING: Unknown template_id=%d in container_items.id=%d", tplDbId, dbId);
-            continue;
-        }
+        if (tplIdx == INVALID_TEMPLATE_IDX) continue;
 
-        // Use stored slot if valid, otherwise auto-assign
         if (slot < 0 || slot >= MAX_ITEMS_PER_CONTAINER)
             slot = Inv_FindFreeSlot(containerIdx);
-        if (slot == -1) continue; // container full
+        if (slot == -1) continue;
 
         g_Items[containerIdx][slot][ci_DbId]        = dbId;
         g_Items[containerIdx][slot][ci_TemplateIdx]  = tplIdx;
@@ -1042,61 +933,14 @@ public Inv_OnItemsLoad(playerid, containerIdx)
         g_Items[containerIdx][slot][ci_Dirty]        = false;
         g_Items[containerIdx][slot][ci_Deleted]      = false;
     }
-
-    g_InvLoaded[playerid] = true;
-    printf("[INV] Loaded %d items for playerid=%d", rows, playerid);
-
-    EventBus_SetInt(EVD_PLAYER_ID, playerid);
-    EventBus_Emit(EVT_INV_PLAYER_LOADED);
 }
 
-// --- Player Logout: save ---
-forward Inv_OnPlayerLogout();
-public Inv_OnPlayerLogout()
+/// Get the DB id of a container (for storing in bridge module's own mapping).
+stock Inv_GetContainerDbId(containerIdx)
 {
-    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
-    if (g_InvLoaded[playerid])
-        Inv_Save(g_PlayerContainerIdx[playerid]);
-    return 1;
-}
-
-// --- Player Disconnect: cleanup ---
-forward Inv_OnPlayerDisconn();
-public Inv_OnPlayerDisconn()
-{
-    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
-    new cIdx = g_PlayerContainerIdx[playerid];
-    if (cIdx != INVALID_CONTAINER_IDX)
-    {
-        // Release container slot
-        g_Containers[cIdx][cnt_Active] = false;
-        // Clear items
-        for (new i = 0; i < MAX_ITEMS_PER_CONTAINER; i++)
-            g_Items[cIdx][i][ci_Active] = false;
-    }
-    g_PlayerContainerIdx[playerid] = INVALID_CONTAINER_IDX;
-    g_InvLoaded[playerid] = false;
-    return 1;
-}
-
-// --- Help handler ---
-forward Inv_OnPlayerHelp();
-public Inv_OnPlayerHelp()
-{
-    new playerid = EventBus_GetInt(EVD_PLAYER_ID);
-    SendClientMessage(playerid, 0xCCCCCCFF, "/inv  /giveitem");
-    return 1;
-}
-
-// =============================================================================
-//  Internal helpers
-// =============================================================================
-
-static stock Inv_AllocContainer()
-{
-    for (new i = 0; i < MAX_CONTAINERS; i++)
-        if (!g_Containers[i][cnt_Active]) return i;
-    return -1;
+    if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return -1;
+    if (!g_Containers[containerIdx][cnt_Active]) return -1;
+    return g_Containers[containerIdx][cnt_DbId];
 }
 
 // =============================================================================
@@ -1107,84 +951,19 @@ forward Inv_AutoSave();
 public Inv_AutoSave()
 {
     new count = 0;
-    for (new i = 0; i < MAX_PLAYERS; i++)
+    for (new i = 0; i < MAX_CONTAINERS; i++)
     {
-        if (IsPlayerConnected(i) && g_InvLoaded[i])
+        if (g_Containers[i][cnt_Active])
         {
-            Inv_Save(g_PlayerContainerIdx[i]);
+            Inv_Save(i);
             count++;
         }
     }
     if (count > 0)
-        printf("[INV] Auto-save: saved %d player(s) inventory.", count);
+        printf("[INV] Auto-save: saved %d container(s).", count);
 }
 
-// =============================================================================
-//  Commands (testing)
-// =============================================================================
-
-forward cmd_giveitem(playerid, params[]);
-public cmd_giveitem(playerid, params[])
-{
-    if (!Auth_IsLoggedIn(playerid))
-        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
-    if (!Admin_RequireLevel(playerid, 2)) return 1;
-    if (!g_InvLoaded[playerid])
-        return SendClientMessage(playerid, 0xFF4444FF, "Inventory not loaded yet."), 1;
-
-    new templateDbId, quantity = 1;
-    if (sscanf(params, "dD(1)", templateDbId, quantity))
-        return SendClientMessage(playerid, 0xFF4444FF, "Usage: /giveitem <template_db_id> [quantity]"), 1;
-
-    new templateIdx = Inv_FindTemplateByDbId(templateDbId);
-    if (templateIdx == INVALID_TEMPLATE_IDX)
-        return SendClientMessage(playerid, 0xFF4444FF, "Unknown template ID."), 1;
-
-    new slot = Inv_PlayerAddItem(playerid, templateIdx, quantity, "");
-    if (slot == -1)
-        return SendClientMessage(playerid, 0xFF4444FF, "Could not add item (full or too heavy)."), 1;
-
-    new name[MAX_ITEM_NAME_LEN];
-    Inv_GetTemplateName(templateIdx, name, sizeof(name));
-
-    new msg[128];
-    format(msg, sizeof(msg), "Added %dx %s to your inventory.", quantity, name);
-    SendClientMessage(playerid, 0x44FF44FF, msg);
-    return 1;
-}
-
-forward cmd_inv(playerid, params[]);
-public cmd_inv(playerid, params[])
-{
-    #pragma unused params
-    if (!Auth_IsLoggedIn(playerid))
-        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
-    if (!g_InvLoaded[playerid])
-        return SendClientMessage(playerid, 0xFF4444FF, "Inventory not loaded yet."), 1;
-
-    InvUI_Open(playerid);
-    return 1;
-}
-
-forward cmd_useitem(playerid, params[]);
-public cmd_useitem(playerid, params[])
-{
-    if (!Auth_IsLoggedIn(playerid))
-        return SendClientMessage(playerid, 0xFF4444FF, "You must be logged in."), 1;
-    if (!g_InvLoaded[playerid])
-        return SendClientMessage(playerid, 0xFF4444FF, "Inventory not loaded yet."), 1;
-
-    new slotIdx;
-    if (sscanf(params, "d", slotIdx))
-        return SendClientMessage(playerid, 0xFF4444FF, "Usage: /useitem <slot>"), 1;
-
-    new cIdx = g_PlayerContainerIdx[playerid];
-    if (!Inv_IsSlotActive(cIdx, slotIdx))
-        return SendClientMessage(playerid, 0xFF4444FF, "Nothing in that slot."), 1;
-
-    Inv_PlayerUseItem(playerid, slotIdx);
-    return 1;
-}
+// Player commands moved to mod_player_inv.inc
 
 // sscanf-lite: parse "d" and "dD(default)" from params
 // Pawn doesn't have sscanf natively — this is a minimal parser
@@ -1199,15 +978,13 @@ stock sscanf(const params[], const format[], &val1, &val2 = 0)
     if (format[0] == 'd' && format[1] == 'D')
     {
         if (params[0] == EOS) return 1;
-        // Parse first int
         val1 = strval(params);
-        // Find second int after space
         new pos = 0;
         while (params[pos] != EOS && params[pos] != ' ') pos++;
         if (params[pos] == ' ')
         {
             pos++;
-            while (params[pos] == ' ') pos++; // skip extra spaces
+            while (params[pos] == ' ') pos++;
             if (params[pos] != EOS)
                 val2 = strval(params[pos]);
         }
