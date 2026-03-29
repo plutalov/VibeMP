@@ -68,6 +68,10 @@
 #define EVT_INV_ITEM_USE            114  // player used an item
 #define EVT_INV_ITEM_MOVED          115  // item moved between containers
 
+// Vehicle events (120-129)
+#define EVT_VEHICLE_CREATED         120  // persistent vehicle loaded/spawned
+#define EVT_VEHICLE_DESTROYED       121  // persistent vehicle removed
+
 // -----------------------------------------------------------------------------
 //  Limits
 // -----------------------------------------------------------------------------
@@ -136,4 +140,8 @@ stock EventBus_InitNames()
     strcat(g_EventNames[EVT_INV_ITEM_REMOVED],         "INV_ITEM_REMOVED",        32);
     strcat(g_EventNames[EVT_INV_ITEM_USE],             "INV_ITEM_USE",            32);
     strcat(g_EventNames[EVT_INV_ITEM_MOVED],           "INV_ITEM_MOVED",          32);
+
+    // Vehicle events
+    strcat(g_EventNames[EVT_VEHICLE_CREATED],          "VEHICLE_CREATED",         32);
+    strcat(g_EventNames[EVT_VEHICLE_DESTROYED],        "VEHICLE_DESTROYED",       32);
 }
