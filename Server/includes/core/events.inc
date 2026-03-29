@@ -45,7 +45,8 @@
 #define EVT_PLAYER_STREAM_IN        26
 #define EVT_PLAYER_STREAM_OUT       27
 #define EVT_PLAYER_INTERIOR_CHANGE  28
-#define EVT_PLAYER_CLICK_MAP       29
+#define EVT_PLAYER_CLICK_MAP        29
+#define EVT_PLAYER_CLICK_PTEXTDRAW  30  // OnPlayerClickPlayerTextDraw
 
 // -----------------------------------------------------------------------------
 //  Custom Game Events (100+)
@@ -57,13 +58,15 @@
 #define EVT_PLAYER_DATA_LOADED      103  // player data loaded from DB and applied
 #define EVT_PLAYER_DATA_SAVED       104  // player data saved to DB
 #define EVT_DB_CONNECTED            105
-#define EVT_PLAYER_HELP             106  // player requested /help  // database connection established
+#define EVT_PLAYER_HELP             106  // player requested /help
 
-// Add new custom events here as modules are created.
-// Example:
-// #define EVT_PLAYER_EARN_MONEY    110
-// #define EVT_PLAYER_SPEND_MONEY   111
-// #define EVT_PROPERTY_PURCHASED   120
+// Inventory events (110-119)
+#define EVT_INV_TEMPLATES_LOADED    110  // all item templates loaded from DB
+#define EVT_INV_PLAYER_LOADED       111  // player's container + items loaded
+#define EVT_INV_ITEM_ADDED          112  // item added to a container
+#define EVT_INV_ITEM_REMOVED        113  // item removed from a container
+#define EVT_INV_ITEM_USE            114  // player used an item
+#define EVT_INV_ITEM_MOVED          115  // item moved between containers
 
 // -----------------------------------------------------------------------------
 //  Limits
@@ -115,6 +118,7 @@ stock EventBus_InitNames()
     strcat(g_EventNames[EVT_PLAYER_STREAM_OUT],        "PLAYER_STREAM_OUT",       32);
     strcat(g_EventNames[EVT_PLAYER_INTERIOR_CHANGE],   "PLAYER_INTERIOR_CHANGE",  32);
     strcat(g_EventNames[EVT_PLAYER_CLICK_MAP],        "PLAYER_CLICK_MAP",        32);
+    strcat(g_EventNames[EVT_PLAYER_CLICK_PTEXTDRAW],  "PLAYER_CLICK_PTEXTDRAW", 32);
 
     // Custom game events
     strcat(g_EventNames[EVT_PLAYER_LOGIN],             "PLAYER_LOGIN",            32);
@@ -124,4 +128,12 @@ stock EventBus_InitNames()
     strcat(g_EventNames[EVT_PLAYER_DATA_SAVED],        "PLAYER_DATA_SAVED",       32);
     strcat(g_EventNames[EVT_DB_CONNECTED],             "DB_CONNECTED",            32);
     strcat(g_EventNames[EVT_PLAYER_HELP],              "PLAYER_HELP",             32);
+
+    // Inventory events
+    strcat(g_EventNames[EVT_INV_TEMPLATES_LOADED],     "INV_TEMPLATES_LOADED",    32);
+    strcat(g_EventNames[EVT_INV_PLAYER_LOADED],        "INV_PLAYER_LOADED",       32);
+    strcat(g_EventNames[EVT_INV_ITEM_ADDED],           "INV_ITEM_ADDED",          32);
+    strcat(g_EventNames[EVT_INV_ITEM_REMOVED],         "INV_ITEM_REMOVED",        32);
+    strcat(g_EventNames[EVT_INV_ITEM_USE],             "INV_ITEM_USE",            32);
+    strcat(g_EventNames[EVT_INV_ITEM_MOVED],           "INV_ITEM_MOVED",          32);
 }

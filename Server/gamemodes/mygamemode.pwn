@@ -31,6 +31,10 @@
 #include <modules/mod_help>
 #include <modules/mod_admin>
 #include <modules/mod_spawn>
+#include <modules/mod_inventory>
+#include <modules/mod_inventory_ui>
+#include <modules/mod_food_temp>
+#include <modules/mod_phone_temp>
 
 // =============================================================================
 //  SA-MP CALLBACK BRIDGE
@@ -53,6 +57,10 @@ public OnGameModeInit()
     Help_Init();
     Admin_Init();
     Spawn_Init();
+    Inv_Init();
+    InvUI_Init();
+    FoodTemp_Init();
+    PhoneTemp_Init();
 
     // --- Server setup ---
     SetGameModeText("RPG Server");
@@ -77,6 +85,10 @@ public OnGameModeExit()
     EventBus_Emit(EVT_GAME_EXIT);
 
     // Destroy in reverse order
+    PhoneTemp_Destroy();
+    FoodTemp_Destroy();
+    InvUI_Destroy();
+    Inv_Destroy();
     Spawn_Destroy();
     Admin_Destroy();
     Help_Destroy();
@@ -229,5 +241,27 @@ public OnPlayerClickMap(playerid, Float:fX, Float:fY, Float:fZ)
     EventBus_SetFloat(1, fY);
     EventBus_SetFloat(2, fZ);
     EventBus_Emit(EVT_PLAYER_CLICK_MAP);
+    return 1;
+}
+
+public OnPlayerClickPlayerTextDraw(playerid, PlayerText:playertextid)
+{
+    EventBus_SetInt(EVD_PLAYER_ID, playerid);
+    EventBus_SetInt(EVD_SECONDARY_ID, _:playertextid);
+    EventBus_Emit(EVT_PLAYER_CLICK_PTEXTDRAW);
+    return 1;
+}
+
+public OnPlayerClickTextDraw(playerid, Text:clickedid)
+{
+    // When SelectTextDraw is active and player presses ESC,
+    // OMP sends this with INVALID_TEXT_DRAW. We reuse the
+    // player textdraw event with INVALID id to trigger close.
+    if (clickedid == Text:INVALID_TEXT_DRAW)
+    {
+        EventBus_SetInt(EVD_PLAYER_ID, playerid);
+        EventBus_SetInt(EVD_SECONDARY_ID, _:INVALID_PLAYER_TEXT_DRAW);
+        EventBus_Emit(EVT_PLAYER_CLICK_PTEXTDRAW);
+    }
     return 1;
 }

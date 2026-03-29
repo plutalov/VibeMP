@@ -100,6 +100,43 @@ wsl docker compose up -d     # recreates everything from scratch
 | admin_level| INT         | 0             | 0=player,1=mod,2=admin,3=owner |
 | last_login | DATETIME    | NULL          |                      |
 
+### item_templates (V3)
+
+| Column           | Type         | Default | Notes |
+|------------------|-------------|---------|-------|
+| id               | INT PK AUTO | —       | Template ID |
+| name             | VARCHAR(32) | —       | Display name |
+| category         | VARCHAR(16) | —       | Used by consumers to filter ("medical", "electronic", etc.) |
+| weight           | FLOAT       | 1.0     | Weight per unit |
+| max_stack        | INT         | 1       | 1 = unique (instanced), >1 = stackable |
+| model_id         | INT         | 0       | SA-MP object model for 3D preview |
+| default_metadata | VARCHAR(128)| ''      | Default metadata for new instances |
+
+**Seed data:** Bandage (medical, stackable ×20, model 11738), Phone (electronic, unique, model 18868)
+
+### containers (V3)
+
+| Column     | Type         | Default | Notes |
+|------------|-------------|---------|-------|
+| id         | INT PK AUTO | —       | Container ID |
+| owner_type | ENUM        | —       | 'player', 'vehicle', 'property', 'world' |
+| owner_id   | INT         | —       | FK to accounts.id / vehicle id / etc. |
+| max_weight | FLOAT       | 30.0    | Max carry weight |
+| created_at | DATETIME    | NOW()   | |
+
+### container_items (V3)
+
+| Column       | Type         | Default | Notes |
+|--------------|-------------|---------|-------|
+| id           | INT PK AUTO | —       | Instance ID |
+| container_id | INT FK      | —       | FK to containers.id (CASCADE delete) |
+| slot         | INT         | -1      | Grid position (0-19), -1 = auto-assign |
+| template_id  | INT FK      | —       | FK to item_templates.id |
+| quantity     | INT         | 1       | Stack count |
+| metadata     | VARCHAR(128)| ''      | Instance-specific state ("lock_id=47", "ammo=12") |
+
+**Stacking rule:** Items with empty metadata stack up to `max_stack`. Items with metadata are always unique (own slot).
+
 ## Async Query Patterns
 
 All MySQL queries are **threaded** — they don't block the server. You issue a query with a callback function name, and the plugin calls that function when the result is ready.
