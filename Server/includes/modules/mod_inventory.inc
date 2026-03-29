@@ -487,6 +487,327 @@ public Inv_OnItemInserted(containerIdx, slotIdx)
 }
 
 // =============================================================================
+//  Public API — Generic Container Operations
+//  Used by bridge modules (mod_veh_trunk, etc.) to manage non-player containers
+// =============================================================================
+
+/// Look up a loaded container by owner type and id. Returns containerIdx or -1.
+stock Inv_FindContainerByOwner(ownerType, ownerId)
+{
+    for (new i = 0; i < MAX_CONTAINERS; i++)
+    {
+        if (g_Containers[i][cnt_Active]
+            && g_Containers[i][cnt_OwnerType] == ownerType
+            && g_Containers[i][cnt_OwnerId] == ownerId)
+            return i;
+    }
+    return INVALID_CONTAINER_IDX;
+}
+
+/// Save dirty items and release a container's memory slot.
+/// Does NOT delete the container from DB — data persists for next load.
+stock Inv_SaveAndFreeContainer(containerIdx)
+{
+    if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
+    if (!g_Containers[containerIdx][cnt_Active]) return;
+
+    Inv_Save(containerIdx);
+
+    // Clear items
+    for (new i = 0; i < MAX_ITEMS_PER_CONTAINER; i++)
+    {
+        g_Items[containerIdx][i][ci_Active] = false;
+        g_Items[containerIdx][i][ci_Dirty] = false;
+        g_Items[containerIdx][i][ci_Deleted] = false;
+    }
+
+    g_Containers[containerIdx][cnt_Active] = false;
+}
+
+/// Load or create a container for any owner type. Async — items available after
+/// EVT_INV_CONTAINER_READY fires (not yet implemented, for now just loads silently).
+/// Returns immediately; container is populated when DB callbacks complete.
+stock Inv_LoadContainerByOwner(ownerType, ownerId, Float:maxWeight = INV_DEFAULT_MAX_WEIGHT)
+{
+    // Check if already loaded
+    new existing = Inv_FindContainerByOwner(ownerType, ownerId);
+    if (existing != INVALID_CONTAINER_IDX) return; // already in memory
+
+    new ownerTypeStr[16];
+    switch (ownerType)
+    {
+        case OWNER_PLAYER:   strcat(ownerTypeStr, "player", sizeof(ownerTypeStr));
+        case OWNER_VEHICLE:  strcat(ownerTypeStr, "vehicle", sizeof(ownerTypeStr));
+        case OWNER_PROPERTY: strcat(ownerTypeStr, "property", sizeof(ownerTypeStr));
+        case OWNER_WORLD:    strcat(ownerTypeStr, "world", sizeof(ownerTypeStr));
+        default: return;
+    }
+
+    new query[256];
+    mysql_format(DB_GetHandle(), query, sizeof(query),
+        "SELECT id, max_weight FROM containers WHERE owner_type = '%e' AND owner_id = %d LIMIT 1",
+        ownerTypeStr, ownerId);
+    mysql_tquery(DB_GetHandle(), query, "Inv_OnGenericContainerLoad", "ddf",
+        ownerType, ownerId, maxWeight);
+}
+
+forward Inv_OnGenericContainerLoad(ownerType, ownerId, Float:maxWeight);
+public Inv_OnGenericContainerLoad(ownerType, ownerId, Float:maxWeight)
+{
+    // Check if something else already loaded it while we were querying
+    if (Inv_FindContainerByOwner(ownerType, ownerId) != INVALID_CONTAINER_IDX) return;
+
+    new rows;
+    cache_get_row_count(rows);
+
+    new containerIdx = Inv_AllocContainer();
+    if (containerIdx == -1)
+    {
+        printf("[INV] ERROR: No free container slots for owner type=%d id=%d", ownerType, ownerId);
+        return;
+    }
+
+    if (rows > 0)
+    {
+        // Container exists in DB
+        cache_get_value_name_int(0, "id", g_Containers[containerIdx][cnt_DbId]);
+        cache_get_value_name_float(0, "max_weight", g_Containers[containerIdx][cnt_MaxWeight]);
+    }
+    else
+    {
+        // Create new container in DB
+        new ownerTypeStr[16];
+        switch (ownerType)
+        {
+            case OWNER_PLAYER:   strcat(ownerTypeStr, "player", sizeof(ownerTypeStr));
+            case OWNER_VEHICLE:  strcat(ownerTypeStr, "vehicle", sizeof(ownerTypeStr));
+            case OWNER_PROPERTY: strcat(ownerTypeStr, "property", sizeof(ownerTypeStr));
+            case OWNER_WORLD:    strcat(ownerTypeStr, "world", sizeof(ownerTypeStr));
+        }
+
+        new query[128];
+        mysql_format(DB_GetHandle(), query, sizeof(query),
+            "INSERT INTO containers (owner_type, owner_id, max_weight) VALUES ('%e', %d, %f)",
+            ownerTypeStr, ownerId, maxWeight);
+        mysql_tquery(DB_GetHandle(), query, "Inv_OnGenericContainerInserted", "d", containerIdx);
+
+        g_Containers[containerIdx][cnt_MaxWeight] = maxWeight;
+    }
+
+    g_Containers[containerIdx][cnt_OwnerType] = ownerType;
+    g_Containers[containerIdx][cnt_OwnerId] = ownerId;
+    g_Containers[containerIdx][cnt_Active] = true;
+
+    // Load items if container existed
+    if (rows > 0)
+    {
+        new query[128];
+        mysql_format(DB_GetHandle(), query, sizeof(query),
+            "SELECT id, template_id, quantity, slot, metadata FROM container_items WHERE container_id = %d",
+            g_Containers[containerIdx][cnt_DbId]);
+        mysql_tquery(DB_GetHandle(), query, "Inv_OnGenericItemsLoad", "d", containerIdx);
+    }
+    else
+    {
+        printf("[INV] Created container for owner type=%d id=%d", ownerType, ownerId);
+    }
+}
+
+forward Inv_OnGenericContainerInserted(containerIdx);
+public Inv_OnGenericContainerInserted(containerIdx)
+{
+    if (containerIdx >= 0 && containerIdx < MAX_CONTAINERS && g_Containers[containerIdx][cnt_Active])
+        g_Containers[containerIdx][cnt_DbId] = cache_insert_id();
+}
+
+forward Inv_OnGenericItemsLoad(containerIdx);
+public Inv_OnGenericItemsLoad(containerIdx)
+{
+    if (containerIdx < 0 || containerIdx >= MAX_CONTAINERS) return;
+    if (!g_Containers[containerIdx][cnt_Active]) return;
+
+    new rows;
+    cache_get_row_count(rows);
+
+    for (new i = 0; i < rows && i < MAX_ITEMS_PER_CONTAINER; i++)
+    {
+        new dbId, tplDbId, quantity, slot;
+        new meta[MAX_METADATA_LEN];
+
+        cache_get_value_name_int(i, "id", dbId);
+        cache_get_value_name_int(i, "template_id", tplDbId);
+        cache_get_value_name_int(i, "quantity", quantity);
+        cache_get_value_name_int(i, "slot", slot);
+        cache_get_value_name(i, "metadata", meta, MAX_METADATA_LEN);
+
+        new tplIdx = Inv_FindTemplateByDbId(tplDbId);
+        if (tplIdx == INVALID_TEMPLATE_IDX) continue;
+
+        if (slot < 0 || slot >= MAX_ITEMS_PER_CONTAINER)
+            slot = Inv_FindFreeSlot(containerIdx);
+        if (slot == -1) continue;
+
+        g_Items[containerIdx][slot][ci_DbId]        = dbId;
+        g_Items[containerIdx][slot][ci_TemplateIdx]  = tplIdx;
+        g_Items[containerIdx][slot][ci_Quantity]     = quantity;
+        g_Items[containerIdx][slot][ci_Slot]         = slot;
+        g_Items[containerIdx][slot][ci_Metadata][0]  = EOS;
+        strcat(g_Items[containerIdx][slot][ci_Metadata], meta, MAX_METADATA_LEN);
+        g_Items[containerIdx][slot][ci_Active]       = true;
+        g_Items[containerIdx][slot][ci_Dirty]        = false;
+        g_Items[containerIdx][slot][ci_Deleted]      = false;
+    }
+
+    printf("[INV] Loaded %d items for container owner=%d:%d",
+        rows, g_Containers[containerIdx][cnt_OwnerType], g_Containers[containerIdx][cnt_OwnerId]);
+}
+
+/// Move an item from one container/slot to another. Handles weight checks.
+/// If destination slot is occupied with same template + stackable: merge.
+/// If destination slot is occupied with different item: swap.
+/// Returns 1 on success, 0 on failure.
+stock Inv_MoveItem(srcContainer, srcSlot, dstContainer, dstSlot)
+{
+    if (srcContainer < 0 || srcContainer >= MAX_CONTAINERS) return 0;
+    if (dstContainer < 0 || dstContainer >= MAX_CONTAINERS) return 0;
+    if (srcSlot < 0 || srcSlot >= MAX_ITEMS_PER_CONTAINER) return 0;
+    if (dstSlot < 0 || dstSlot >= MAX_ITEMS_PER_CONTAINER) return 0;
+    if (!g_Containers[srcContainer][cnt_Active]) return 0;
+    if (!g_Containers[dstContainer][cnt_Active]) return 0;
+    if (!g_Items[srcContainer][srcSlot][ci_Active]) return 0;
+
+    // Same slot, same container — no-op
+    if (srcContainer == dstContainer && srcSlot == dstSlot) return 1;
+
+    new srcTpl = g_Items[srcContainer][srcSlot][ci_TemplateIdx];
+    new srcQty = g_Items[srcContainer][srcSlot][ci_Quantity];
+    new Float:srcItemWeight = g_Templates[srcTpl][tpl_Weight] * float(srcQty);
+
+    if (g_Items[dstContainer][dstSlot][ci_Active] && !g_Items[dstContainer][dstSlot][ci_Deleted])
+    {
+        new dstTpl = g_Items[dstContainer][dstSlot][ci_TemplateIdx];
+        new dstQty = g_Items[dstContainer][dstSlot][ci_Quantity];
+
+        if (srcTpl == dstTpl
+            && g_Items[srcContainer][srcSlot][ci_Metadata][0] == EOS
+            && g_Items[dstContainer][dstSlot][ci_Metadata][0] == EOS
+            && g_Templates[srcTpl][tpl_MaxStack] > 1)
+        {
+            // Same stackable template — merge
+            new maxStack = g_Templates[srcTpl][tpl_MaxStack];
+            new canFit = maxStack - dstQty;
+            if (canFit <= 0) return 0; // destination stack full
+
+            new toMove = srcQty;
+            if (toMove > canFit) toMove = canFit;
+
+            g_Items[dstContainer][dstSlot][ci_Quantity] += toMove;
+            g_Items[dstContainer][dstSlot][ci_Dirty] = true;
+
+            g_Items[srcContainer][srcSlot][ci_Quantity] -= toMove;
+            if (g_Items[srcContainer][srcSlot][ci_Quantity] <= 0)
+            {
+                if (g_Items[srcContainer][srcSlot][ci_DbId] > 0)
+                {
+                    g_Items[srcContainer][srcSlot][ci_Deleted] = true;
+                    g_Items[srcContainer][srcSlot][ci_Dirty] = true;
+                }
+                else
+                    g_Items[srcContainer][srcSlot][ci_Active] = false;
+            }
+            else
+                g_Items[srcContainer][srcSlot][ci_Dirty] = true;
+        }
+        else
+        {
+            // Different items or unique — swap
+            if (srcContainer != dstContainer)
+            {
+                // Weight check for cross-container swap
+                new Float:dstItemWeight = g_Templates[dstTpl][tpl_Weight] * float(dstQty);
+                new Float:srcContWeight = Inv_GetContainerWeight(srcContainer);
+                new Float:dstContWeight = Inv_GetContainerWeight(dstContainer);
+
+                // After swap: src loses srcItem, gains dstItem
+                if (srcContWeight - srcItemWeight + dstItemWeight > g_Containers[srcContainer][cnt_MaxWeight])
+                    return 0;
+                // After swap: dst loses dstItem, gains srcItem
+                if (dstContWeight - dstItemWeight + srcItemWeight > g_Containers[dstContainer][cnt_MaxWeight])
+                    return 0;
+            }
+
+            // Perform swap by copying fields
+            new tmpDbId = g_Items[dstContainer][dstSlot][ci_DbId];
+            new tmpTpl  = g_Items[dstContainer][dstSlot][ci_TemplateIdx];
+            new tmpQty  = g_Items[dstContainer][dstSlot][ci_Quantity];
+            new tmpMeta[MAX_METADATA_LEN];
+            strcat(tmpMeta, g_Items[dstContainer][dstSlot][ci_Metadata], MAX_METADATA_LEN);
+
+            g_Items[dstContainer][dstSlot][ci_DbId]       = g_Items[srcContainer][srcSlot][ci_DbId];
+            g_Items[dstContainer][dstSlot][ci_TemplateIdx] = srcTpl;
+            g_Items[dstContainer][dstSlot][ci_Quantity]    = srcQty;
+            g_Items[dstContainer][dstSlot][ci_Metadata][0] = EOS;
+            strcat(g_Items[dstContainer][dstSlot][ci_Metadata],
+                g_Items[srcContainer][srcSlot][ci_Metadata], MAX_METADATA_LEN);
+            g_Items[dstContainer][dstSlot][ci_Dirty]       = true;
+
+            g_Items[srcContainer][srcSlot][ci_DbId]       = tmpDbId;
+            g_Items[srcContainer][srcSlot][ci_TemplateIdx] = tmpTpl;
+            g_Items[srcContainer][srcSlot][ci_Quantity]    = tmpQty;
+            g_Items[srcContainer][srcSlot][ci_Metadata][0] = EOS;
+            strcat(g_Items[srcContainer][srcSlot][ci_Metadata], tmpMeta, MAX_METADATA_LEN);
+            g_Items[srcContainer][srcSlot][ci_Dirty]       = true;
+        }
+    }
+    else
+    {
+        // Destination empty — simple move
+        if (srcContainer != dstContainer)
+        {
+            // Weight check
+            new Float:dstContWeight = Inv_GetContainerWeight(dstContainer);
+            if (dstContWeight + srcItemWeight > g_Containers[dstContainer][cnt_MaxWeight])
+                return 0;
+        }
+
+        // Copy to destination
+        g_Items[dstContainer][dstSlot][ci_DbId]       = g_Items[srcContainer][srcSlot][ci_DbId];
+        g_Items[dstContainer][dstSlot][ci_TemplateIdx] = srcTpl;
+        g_Items[dstContainer][dstSlot][ci_Quantity]    = srcQty;
+        g_Items[dstContainer][dstSlot][ci_Slot]        = dstSlot;
+        g_Items[dstContainer][dstSlot][ci_Metadata][0] = EOS;
+        strcat(g_Items[dstContainer][dstSlot][ci_Metadata],
+            g_Items[srcContainer][srcSlot][ci_Metadata], MAX_METADATA_LEN);
+        g_Items[dstContainer][dstSlot][ci_Active]      = true;
+        g_Items[dstContainer][dstSlot][ci_Dirty]       = true;
+        g_Items[dstContainer][dstSlot][ci_Deleted]     = false;
+
+        // Clear source
+        if (g_Items[srcContainer][srcSlot][ci_DbId] > 0)
+        {
+            // DB item moved — old row needs delete, new row needs insert
+            // Simplest: mark old as deleted, new as dbId=0 (will INSERT on save)
+            g_Items[srcContainer][srcSlot][ci_Deleted] = true;
+            g_Items[srcContainer][srcSlot][ci_Dirty] = true;
+            g_Items[dstContainer][dstSlot][ci_DbId] = 0; // will get new DB id on save
+        }
+        else
+        {
+            g_Items[srcContainer][srcSlot][ci_Active] = false;
+        }
+    }
+
+    // Emit move event
+    EventBus_SetInt(EVD_PLAYER_ID, -1);
+    EventBus_SetInt(EVD_SECONDARY_ID, srcContainer);
+    EventBus_SetInt(EVD_VALUE, dstContainer);
+    EventBus_SetInt(EVD_EXTRA, srcTpl);
+    EventBus_Emit(EVT_INV_ITEM_MOVED);
+
+    return 1;
+}
+
+// =============================================================================
 //  Init / Destroy
 // =============================================================================
 

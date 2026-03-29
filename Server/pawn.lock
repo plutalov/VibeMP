@@ -1,6 +1,6 @@
 {
 	"version": 1,
-	"generated": "2026-03-29T19:47:53.4833176Z",
+	"generated": "2026-03-29T19:56:49.1497548Z",
 	"sampctl_version": "",
 	"dependencies": {
 		"github.com/Sreyas-Sreelal/samp-bcrypt": {
@@ -60,6 +60,6 @@
 		"compiler_preset": "samp",
 		"entry": "gamemodes/mygamemode.pwn",
 		"output": "gamemodes/mygamemode.amx",
-		"output_hash": "sha256:700a6004bac585b7ce69596763b9bcfc985086cf60b3c0b005ecaea8b8a67749"
+		"output_hash": "sha256:0e58f9db0b3b13180ef7a59f225cf2f661300fd348c7680d6ee87d898b5297cd"
 	}
 }

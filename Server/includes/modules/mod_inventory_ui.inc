@@ -211,6 +211,16 @@ static stock InvUI_Refresh(playerid)
 //  Open / Close
 // =============================================================================
 
+/// Open dual-panel view: player inventory (left) + external container (right).
+/// Full dual-panel rendering comes in Phase 4 — for now opens the external container.
+stock InvUI_OpenDual(playerid, externalContainerIdx, const title[])
+{
+    #pragma unused title
+    // TODO Phase 4: render two panels side by side
+    // For now, open the external container in the single-panel view
+    InvUI_Open(playerid, externalContainerIdx);
+}
+
 stock InvUI_Open(playerid, containerIdx = INVALID_CONTAINER_IDX)
 {
     // Default to player's own inventory

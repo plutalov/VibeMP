@@ -34,6 +34,7 @@
 #include <modules/mod_inventory>
 #include <modules/mod_inventory_ui>
 #include <modules/mod_vehicles>
+#include <modules/mod_veh_trunk>
 #include <modules/mod_food_temp>
 #include <modules/mod_phone_temp>
 
@@ -61,6 +62,7 @@ public OnGameModeInit()
     Inv_Init();
     InvUI_Init();
     Veh_Init();
+    VehTrunk_Init();
     FoodTemp_Init();
     PhoneTemp_Init();
 
@@ -89,6 +91,7 @@ public OnGameModeExit()
     // Destroy in reverse order
     PhoneTemp_Destroy();
     FoodTemp_Destroy();
+    VehTrunk_Destroy();
     Veh_Destroy();
     InvUI_Destroy();
     Inv_Destroy();
