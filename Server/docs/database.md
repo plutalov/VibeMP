@@ -137,6 +137,20 @@ wsl docker compose up -d     # recreates everything from scratch
 
 **Stacking rule:** Items with empty metadata stack up to `max_stack`. Items with metadata are always unique (own slot).
 
+### vehicles (V4)
+
+| Column | Type | Default | Notes |
+|--------|------|---------|-------|
+| id | INT PK AUTO | — | Persistent vehicle ID |
+| model_id | INT | — | SA-MP vehicle model (400-611) |
+| pos_x/y/z | FLOAT | 0.0 | World position |
+| pos_a | FLOAT | 0.0 | Facing angle |
+| color1/color2 | INT | -1 | Colors (-1 = random) |
+| health | FLOAT | 1000.0 | Engine damage state |
+| created_at | DATETIME | NOW() | |
+
+**Used by:** `mod_vehicles` loads all rows on startup; `mod_veh_trunk` uses vehicles as container owners.
+
 ## Async Query Patterns
 
 All MySQL queries are **threaded** — they don't block the server. You issue a query with a callback function name, and the plugin calls that function when the result is ready.

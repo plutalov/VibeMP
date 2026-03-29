@@ -1,52 +1,82 @@
-# mod_inventory_ui — Inventory Visual Grid
+# mod_inventory_ui — Dual-Panel Inventory UI
 
-Renders a 4×5 textdraw grid with 3D item model previews. Click a slot to use the item. ESC or X to close.
+Renders one or two 4x5 grids with 3D model previews. Context menu (Use/Move/Drop/Cancel) on item click. Move mode for dragging items between containers.
+
+## Layout Modes
+
+| Mode | Panels | Trigger |
+|------|--------|---------|
+| Single | Player inventory only | `/inv` |
+| Dual | Player inventory (left) + external container (right) | `/trunk` or any `InvUI_OpenDual` call |
+
+## Interaction State Machine
+
+Layout and state are independent — the state machine works identically with one or two panels.
+
+```
+IDLE → click occupied slot → CONTEXT_MENU (slots disabled)
+CONTEXT_MENU → Use  → emit EVT_INV_ITEM_USE → IDLE
+CONTEXT_MENU → Move → MOVE_MODE (slots re-enabled, source highlighted)
+CONTEXT_MENU → Drop → remove item → IDLE
+CONTEXT_MENU → Cancel / ESC / click elsewhere → IDLE
+MOVE_MODE → click destination slot → Inv_MoveItem → IDLE
+MOVE_MODE → ESC → IDLE
+IDLE → ESC / X → close UI
+```
+
+Slots are made non-selectable during CONTEXT_MENU state via hide/SetSelectable/show cycle, preventing accidental slot clicks while the menu is visible.
 
 ## Public API
 
 | Function | Description |
 |----------|-------------|
-| `InvUI_Open(playerid)` | Show the inventory grid |
-| `InvUI_Close(playerid)` | Hide the inventory grid |
+| `InvUI_Open(playerid, containerIdx)` | Open single-panel (defaults to player's container) |
+| `InvUI_OpenDual(playerid, containerIdx, title[])` | Open dual-panel (left=player, right=external) |
+| `InvUI_Close(playerid)` | Close UI, cleanup state |
 
 ## Events
 
 | Direction | Event | Description |
 |-----------|-------|-------------|
-| Subscribes | `EVT_PLAYER_CLICK_PTEXTDRAW` | Handles slot clicks, close button, ESC |
-| Subscribes | `EVT_PLAYER_CONNECT` | Reset UI state on connect |
-| Subscribes | `EVT_PLAYER_DISCONNECT` | Cleanup (textdraws auto-destroyed) |
-| Subscribes | `EVT_INV_ITEM_ADDED` | Refresh UI if open |
-| Subscribes | `EVT_INV_ITEM_REMOVED` | Refresh UI if open |
+| Subscribes | `EVT_PLAYER_CLICK_PTEXTDRAW` | State machine click handler |
+| Subscribes | `EVT_PLAYER_CONNECT` | Reset UI state |
+| Subscribes | `EVT_PLAYER_DISCONNECT` | Cleanup |
+| Subscribes | `EVT_INV_ITEM_ADDED` | Refresh if open |
+| Subscribes | `EVT_INV_ITEM_REMOVED` | Refresh if open |
+| Subscribes | `EVT_INV_ITEM_MOVED` | Refresh if open |
 
-## Dependencies
+## Context Menu
 
-- `mod_inventory` — all data queries
-- `mod_auth` — `Auth_IsLoggedIn()` (via mod_inventory)
+| Button | Color | Action |
+|--------|-------|--------|
+| Use | Green | Emits EVT_INV_ITEM_USE |
+| Move | Yellow | Enters MOVE_MODE |
+| Drop | Red | Removes item entirely |
+| Cancel | Gray | Closes menu |
 
 ## Textdraw Budget
 
-44 of 256 per-player textdraws:
-- 1 background panel
-- 1 title ("INVENTORY")
-- 1 weight display
-- 1 close button (X)
-- 20 slot backgrounds (dark cells for grid structure)
-- 20 slot models (3D preview, only shown for occupied slots)
-- 20 quantity labels (bottom-right of slot, only shown when qty > 1)
+95 of 256 per-player textdraws:
 
-Leaves 212 textdraws for other UI systems.
+| Component | Left | Right | Shared | Total |
+|-----------|------|-------|--------|-------|
+| Background | 1 | 1 | | 2 |
+| Title | 1 | 1 | | 2 |
+| Weight | 1 | 1 | | 2 |
+| Close buttons | | | 2 | 2 |
+| Slots (model) | 20 | 20 | | 40 |
+| Qty labels | 20 | 20 | | 40 |
+| Context menu | | | 5 | 5 |
+| **Total** | | | | **93** |
 
-## Layout
+Leaves 163 for other UI systems. Right panel created but hidden in single mode.
 
-- Grid: 4 columns × 5 rows, each cell 55×55px, 4px padding
-- Position: starts at (320, 120) — right side of screen
-- Empty slots show dark background only (no model)
-- Occupied slots show 3D model via `TEXT_DRAW_FONT_MODEL_PREVIEW`
-- Click detection via `SelectTextDraw` + `OnPlayerClickPlayerTextDraw`
+## Dependencies
+
+- `mod_inventory` — all data queries and item operations
 
 ## Notes
 
-- Textdraws are created once per player on first `/inv`, reused on subsequent opens
-- On reconnect, `InvUI_OnConnect` resets UI state and cancels any lingering textdraw selection
-- ESC close is handled via `OnPlayerClickTextDraw` (global) with `INVALID_TEXT_DRAW`, forwarded to the same event handler
+- **Two close buttons:** One for single mode (left panel edge), one for dual mode (right panel edge). Textdraws can't be repositioned, so both are created and the correct one is shown.
+- **Slot selectability toggle:** On context menu open, all slots are hidden, set non-selectable, re-shown. On close, reversed. This prevents slot clicks from interfering with menu buttons.
+- **Empty slots:** Display model 19300 (invisible object) with dark background color.
